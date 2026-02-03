@@ -1,0 +1,7 @@
+<nav search_view="search" color="#65A637">
+  <view name="alerting_framework" default='true' />
+  <collection label="Settings">
+    <a href="/manager/alerting_framework/saved/searches">Manage Alerts</a>
+    <a href="/manager/alerting_framework/admin/macros">Manage Macros</a>
+  </collection>
+</nav>
