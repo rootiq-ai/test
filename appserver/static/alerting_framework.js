@@ -9,6 +9,7 @@ require([
     // State
     var isAcknowledged = false;
     var macrosList = [];
+    var templatesList = [];
     
     // Get token models for time picker
     var defaultTokens = mvc.Components.get('default');
@@ -419,6 +420,95 @@ require([
     }
     
     // ============================================
+    // LOAD TEMPLATES FROM LOOKUP
+    // ============================================
+    function loadTemplates() {
+        log('Loading templates...', 'info');
+        $('#templates-container').html('Loading...');
+        
+        var sm = new SearchManager({
+            id: 'templates_' + Date.now(),
+            search: '| inputlookup alert_templates.csv',
+            earliest_time: '-1m',
+            latest_time: 'now'
+        });
+        
+        sm.on('search:done', function() {
+            var res = sm.data('results');
+            if (res) {
+                res.on('data', function() {
+                    var rows = res.data().rows || [];
+                    var fields = res.data().fields || [];
+                    templatesList = [];
+                    
+                    if (rows.length === 0) {
+                        $('#templates-container').html('<p>No templates found. Add templates to lookups/alert_templates.csv</p>');
+                        return;
+                    }
+                    
+                    var html = '';
+                    for (var i = 0; i < rows.length; i++) {
+                        var tpl = {
+                            name: rows[i][fields.indexOf('name')] || '',
+                            description: rows[i][fields.indexOf('description')] || '',
+                            priority: rows[i][fields.indexOf('priority')] || 'P3',
+                            frequency: rows[i][fields.indexOf('frequency')] || '*/15 * * * *',
+                            frequency_label: rows[i][fields.indexOf('frequency_label')] || 'Every 15 min',
+                            ticket: rows[i][fields.indexOf('ticket')] || 'no',
+                            event_class: rows[i][fields.indexOf('event_class')] || '',
+                            assignment_group: rows[i][fields.indexOf('assignment_group')] || '',
+                            org_code: rows[i][fields.indexOf('org_code')] || '',
+                            threshold: rows[i][fields.indexOf('threshold')] || '0',
+                            suppression: rows[i][fields.indexOf('suppression')] || '0',
+                            duration: rows[i][fields.indexOf('duration')] || '-15m',
+                            email: rows[i][fields.indexOf('email')] || '',
+                            subject_prefix: rows[i][fields.indexOf('subject_prefix')] || '[ALERT]',
+                            email_body: rows[i][fields.indexOf('email_body')] || '',
+                            query: rows[i][fields.indexOf('query')] || ''
+                        };
+                        templatesList.push(tpl);
+                        
+                        // Priority color
+                        var prioColor = '#666';
+                        if (tpl.priority === 'P1') prioColor = '#c62828';
+                        else if (tpl.priority === 'P2') prioColor = '#f57c00';
+                        else if (tpl.priority === 'P3') prioColor = '#1976d2';
+                        else if (tpl.priority === 'P4') prioColor = '#388e3c';
+                        
+                        html += '<div style="padding:10px;margin-bottom:8px;background:#f5f5f5;border-radius:4px;border-left:4px solid ' + prioColor + ';">';
+                        html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+                        html += '<strong>' + tpl.name + '</strong> <span style="color:' + prioColor + ';font-weight:bold;">(' + tpl.priority + ')</span>';
+                        html += '<button class="btn btn-primary btn-xs btn-apply-template" data-idx="' + i + '">Apply</button>';
+                        html += '</div>';
+                        html += '<p style="font-size:11px;margin:3px 0;color:#666;">' + tpl.description + '</p>';
+                        html += '<p style="font-size:10px;margin:3px 0;color:#888;">';
+                        html += '⏱ ' + tpl.frequency_label + ' | 🎫 Ticket: ' + tpl.ticket;
+                        if (tpl.ticket === 'yes') {
+                            html += ' (' + tpl.event_class + ')';
+                        }
+                        html += ' | ⚡ Threshold: ' + tpl.threshold;
+                        html += '</p>';
+                        if (tpl.query) {
+                            html += '<p style="font-size:9px;margin:3px 0;color:#999;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + tpl.query + '">📝 ' + tpl.query + '</p>';
+                        }
+                        html += '</div>';
+                    }
+                    
+                    $('#templates-container').html(html);
+                    log('Loaded ' + templatesList.length + ' templates', 'success');
+                });
+            }
+        });
+        
+        sm.on('search:error', function() {
+            $('#templates-container').html('<p style="color:red;">Error loading templates. Make sure alert_templates.csv exists in lookups folder.</p>');
+            log('Error loading templates', 'error');
+        });
+        
+        sm.startSearch();
+    }
+    
+    // ============================================
     // RUN PREVIEW SEARCH
     // ============================================
     function runPreview() {
@@ -679,33 +769,93 @@ require([
         updateSummary();
     });
     
-    // Use template
-    $(document).on('click', '.btn-use-template', function() {
-        var tpl = $(this).data('tpl');
-        if (tpl === 'critical') {
-            $('#fld_priority').val('P1');
-            $('#fld_ticket').val('yes');
-            $('#fld_frequency').val('*/5 * * * *');
-            $('#fld_subject').val('[CRITICAL] $name$');
-        } else if (tpl === 'warning') {
-            $('#fld_priority').val('P2');
-            $('#fld_ticket').val('yes');
-            $('#fld_frequency').val('*/15 * * * *');
-            $('#fld_subject').val('[WARNING] $name$');
-        } else if (tpl === 'info') {
-            $('#fld_priority').val('P3');
-            $('#fld_ticket').val('no');
-            $('#fld_frequency').val('0 * * * *');
-            $('#fld_subject').val('[INFO] $name$');
-        } else if (tpl === 'daily') {
-            $('#fld_priority').val('P4');
-            $('#fld_ticket').val('no');
-            $('#fld_frequency').val('0 0 * * *');
-            $('#fld_subject').val('[DAILY] $name$');
+    // Apply template from lookup - fills ALL form fields
+    $(document).on('click', '.btn-apply-template', function() {
+        var idx = parseInt($(this).data('idx'));
+        if (idx >= 0 && idx < templatesList.length) {
+            var tpl = templatesList[idx];
+            
+            // Alert Name - use template name as prefix
+            $('#fld_alert_name').val(tpl.name + ' - ');
+            
+            // Application Name (user should fill this)
+            // $('#fld_app_name').val('');
+            
+            // Ticket Creation
+            $('#fld_ticket').val(tpl.ticket);
+            
+            // Ticket fields (Event Class, Assignment Group, Org Code)
+            if (tpl.ticket === 'yes') {
+                $('#fld_eventclass').val(tpl.event_class || '');
+                $('#fld_assignment').val(tpl.assignment_group || '');
+                $('#fld_orgcode').val(tpl.org_code || '');
+            }
+            
+            // Splunk Query
+            if (tpl.query) {
+                $('#fld_query').val(tpl.query);
+            }
+            
+            // Email
+            if (tpl.email) {
+                $('#fld_email').val(tpl.email);
+            }
+            
+            // Email Subject
+            $('#fld_subject').val(tpl.subject_prefix + ' $name$');
+            
+            // Email Body
+            if (tpl.email_body) {
+                $('#fld_body').val(tpl.email_body);
+            }
+            
+            // Priority
+            $('#fld_priority').val(tpl.priority);
+            
+            // Duration - set token if available
+            if (tpl.duration && defaultTokens) {
+                defaultTokens.set('duration_token.earliest', tpl.duration);
+                defaultTokens.set('duration_token.latest', 'now');
+            }
+            // Also set fallback dropdown if exists
+            if ($('#fld_duration_fallback').length && tpl.duration) {
+                $('#fld_duration_fallback').val(tpl.duration);
+            }
+            
+            // Frequency
+            $('#fld_frequency').val(tpl.frequency);
+            // Hide custom cron if not custom
+            if (tpl.frequency !== 'custom') {
+                $('#fld_custom_cron').hide().val('');
+            }
+            
+            // Threshold
+            $('#fld_threshold').val(tpl.threshold || '0');
+            
+            // Suppression (in minutes)
+            $('#fld_suppression').val(tpl.suppression || '0');
+            
+            // Toggle ticket fields visibility
+            toggleTicketFields();
+            
+            // Update summary
+            updateSummary();
+            
+            // Scroll to form
+            $('html, body').animate({
+                scrollTop: $('#fld_alert_name').offset().top - 100
+            }, 300);
+            
+            // Focus on alert name for user to complete it
+            $('#fld_alert_name').focus().select();
+            
+            log('Applied template: ' + tpl.name + ' (' + tpl.priority + ') - All fields updated', 'success');
         }
-        toggleTicketFields();
-        updateSummary();
-        log('Applied template: ' + tpl, 'success');
+    });
+    
+    // Refresh templates
+    $(document).on('click', '#btn-refresh-templates', function() {
+        loadTemplates();
     });
     
     // Expand macros - replace in query field
@@ -926,6 +1076,7 @@ require([
         }
         
         loadMacros();
+        loadTemplates();
         toggleTicketFields();
         updateSummary();
     });

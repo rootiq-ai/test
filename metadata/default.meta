@@ -3,3 +3,6 @@ export = system
 
 [views]
 export = system
+
+[lookups/alert_templates.csv]
+export = system
