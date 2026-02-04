@@ -155,6 +155,46 @@ require([
     }
     
     // ============================================
+    // BUILD FULL QUERY WITH EVAL FIELDS
+    // ============================================
+    function buildFullQuery() {
+        var baseQuery = $.trim($('#fld_query').val());
+        var alertName = $.trim($('#fld_alert_name').val());
+        var appName = $.trim($('#fld_app_name').val());
+        var ticketCreation = $('#fld_ticket').val();
+        var priority = $('#fld_priority').val() || 'P3';
+        var eventClass = $.trim($('#fld_eventclass').val());
+        var assignmentGroup = $.trim($('#fld_assignment').val());
+        var orgCode = $.trim($('#fld_orgcode').val());
+        var emailIds = $.trim($('#fld_email').val());
+        var emailSubject = $.trim($('#fld_subject').val());
+        var emailBody = $.trim($('#fld_body').val());
+        
+        // Build eval statement with all required fields
+        var evalParts = [];
+        evalParts.push('alert_name="' + alertName.replace(/"/g, '\\"') + '"');
+        evalParts.push('app_name="' + appName.replace(/"/g, '\\"') + '"');
+        evalParts.push('ticket_creation="' + ticketCreation + '"');
+        evalParts.push('priority="' + priority + '"');
+        
+        if (ticketCreation === 'yes') {
+            evalParts.push('event_class="' + eventClass.replace(/"/g, '\\"') + '"');
+            evalParts.push('assignment_group="' + assignmentGroup.replace(/"/g, '\\"') + '"');
+            evalParts.push('org_code="' + orgCode.replace(/"/g, '\\"') + '"');
+        }
+        
+        // Email fields are required
+        evalParts.push('email_ids="' + emailIds.replace(/"/g, '\\"') + '"');
+        evalParts.push('email_subject="' + emailSubject.replace(/"/g, '\\"') + '"');
+        evalParts.push('email_body="' + emailBody.replace(/"/g, '\\"') + '"');
+        
+        // Construct final query
+        var fullQuery = baseQuery + ' | eval ' + evalParts.join(', ');
+        
+        return fullQuery;
+    }
+    
+    // ============================================
     // LOGGING
     // ============================================
     function log(msg, type) {
@@ -251,14 +291,23 @@ require([
             }
         }
         
-        // 5. Splunk Query
+        // 5. Org Code (only if ticket = yes)
+        if (isTicketYes) {
+            var orgCode = $.trim($('#fld_orgcode').val());
+            if (orgCode === '') {
+                showErr('orgcode', 'Org code is required when Ticket Creation is Yes');
+                errors.push('Org Code');
+            }
+        }
+        
+        // 6. Splunk Query
         var query = $.trim($('#fld_query').val());
         if (query === '') {
             showErr('query', 'Splunk query is required');
             errors.push('Splunk Query');
         }
         
-        // 6. Email IDs
+        // 6. Email IDs (required)
         var emailRaw = $.trim($('#fld_email').val());
         if (emailRaw === '') {
             showErr('email', 'Email address is required');
@@ -278,14 +327,21 @@ require([
             }
         }
         
-        // 7. Email Subject
+        // 7. Email Subject (required)
         var subject = $.trim($('#fld_subject').val());
         if (subject === '') {
             showErr('subject', 'Email subject is required');
             errors.push('Email Subject');
         }
         
-        // 8. Custom Cron (only if frequency is custom)
+        // 8. Email Body (required)
+        var body = $.trim($('#fld_body').val());
+        if (body === '') {
+            showErr('body', 'Email body is required');
+            errors.push('Email Body');
+        }
+        
+        // 9. Custom Cron (only if frequency is custom)
         if ($('#fld_frequency').val() === 'custom') {
             var customCron = $.trim($('#fld_custom_cron').val());
             if (customCron === '') {
@@ -319,6 +375,7 @@ require([
             $('#ticket-fields-container').slideUp(200);
             hideErr('eventclass');
             hideErr('assignment');
+            hideErr('orgcode');
             log('Hiding ticket fields', 'info');
         }
         
@@ -347,19 +404,24 @@ require([
         
         $('#sum-threshold').text($('#fld_threshold').val() || '0');
         
-        // Suppression display (input is in minutes)
-        var suppMin = parseInt($('#fld_suppression').val()) || 0;
-        var suppText = 'None';
-        if (suppMin > 0) {
-            if (suppMin >= 60) {
-                suppText = (suppMin / 60).toFixed(1) + ' hour(s) (' + suppMin + ' min)';
-            } else {
-                suppText = suppMin + ' min';
-            }
+        // Throttle/Suppression display
+        var suppText = 'None (Throttle disabled)';
+        if ($('#fld_throttle').is(':checked')) {
+            var suppVal = parseInt($('#fld_suppression').val()) || 0;
+            var suppUnit = $('#fld_suppression_unit').val();
+            var unitLabel = suppUnit === 's' ? 'second(s)' : (suppUnit === 'm' ? 'minute(s)' : 'hour(s)');
+            suppText = suppVal + ' ' + unitLabel;
         }
         $('#sum-suppression').text(suppText);
         
-        $('#sum-query').text($('#fld_query').val() || '-');
+        // Show full query with eval fields if base query exists
+        var baseQuery = $.trim($('#fld_query').val());
+        if (baseQuery) {
+            var fullQuery = buildFullQuery();
+            $('#sum-query').text(fullQuery);
+        } else {
+            $('#sum-query').text('-');
+        }
         
         // Enable ack button if name and query present
         var canAck = $.trim($('#fld_alert_name').val()) !== '' && $.trim($('#fld_query').val()) !== '';
@@ -398,10 +460,16 @@ require([
                         var name = rows[i][fields.indexOf('title')] || '';
                         var def = rows[i][fields.indexOf('definition')] || '';
                         macrosList.push({ name: name, def: def });
-                        html += '<div style="padding:5px;margin:5px 0;background:#f5f5f5;border-radius:4px;">';
-                        html += '<strong style="color:#1976d2;">`' + name + '`</strong> ';
+                        
+                        // Truncate definition for display
+                        var defDisplay = def.length > 50 ? def.substring(0, 50) + '...' : def;
+                        
+                        html += '<div style="padding:8px;margin-bottom:8px;background:#f5f5f5;border-radius:4px;overflow:hidden;">';
+                        html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">';
+                        html += '<code style="color:#1976d2;font-size:11px;">`' + name + '`</code>';
                         html += '<button class="btn btn-default btn-xs btn-insert-macro" data-name="' + name + '">Insert</button>';
-                        html += '<div style="font-size:11px;color:#666;">' + def + '</div>';
+                        html += '</div>';
+                        html += '<div style="font-size:10px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + def.replace(/"/g, '&quot;') + '">' + defDisplay + '</div>';
                         html += '</div>';
                     }
                     
@@ -475,22 +543,16 @@ require([
                         else if (tpl.priority === 'P3') prioColor = '#1976d2';
                         else if (tpl.priority === 'P4') prioColor = '#388e3c';
                         
-                        html += '<div style="padding:10px;margin-bottom:8px;background:#f5f5f5;border-radius:4px;border-left:4px solid ' + prioColor + ';">';
-                        html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-                        html += '<strong>' + tpl.name + '</strong> <span style="color:' + prioColor + ';font-weight:bold;">(' + tpl.priority + ')</span>';
-                        html += '<button class="btn btn-primary btn-xs btn-apply-template" data-idx="' + i + '">Apply</button>';
+                        html += '<div style="padding:8px;margin-bottom:8px;background:#f5f5f5;border-radius:4px;border-left:3px solid ' + prioColor + ';overflow:hidden;">';
+                        html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:5px;">';
+                        html += '<span style="font-weight:bold;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + tpl.name + '</span>';
+                        html += '<span style="display:flex;align-items:center;gap:5px;flex-shrink:0;">';
+                        html += '<span style="color:' + prioColor + ';font-weight:bold;font-size:11px;">(' + tpl.priority + ')</span>';
+                        html += '<button class="btn btn-primary btn-xs btn-apply-template" data-idx="' + i + '" style="padding:2px 8px;">Apply</button>';
+                        html += '</span>';
                         html += '</div>';
-                        html += '<p style="font-size:11px;margin:3px 0;color:#666;">' + tpl.description + '</p>';
-                        html += '<p style="font-size:10px;margin:3px 0;color:#888;">';
-                        html += '⏱ ' + tpl.frequency_label + ' | 🎫 Ticket: ' + tpl.ticket;
-                        if (tpl.ticket === 'yes') {
-                            html += ' (' + tpl.event_class + ')';
-                        }
-                        html += ' | ⚡ Threshold: ' + tpl.threshold;
-                        html += '</p>';
-                        if (tpl.query) {
-                            html += '<p style="font-size:9px;margin:3px 0;color:#999;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + tpl.query + '">📝 ' + tpl.query + '</p>';
-                        }
+                        html += '<div style="font-size:10px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px;" title="' + tpl.description + '">' + tpl.description + '</div>';
+                        html += '<div style="font-size:9px;color:#888;margin-top:2px;">' + tpl.frequency_label + ' | Ticket: ' + tpl.ticket + '</div>';
                         html += '</div>';
                     }
                     
@@ -512,18 +574,20 @@ require([
     // RUN PREVIEW SEARCH
     // ============================================
     function runPreview() {
-        var query = $.trim($('#fld_query').val());
+        var baseQuery = $.trim($('#fld_query').val());
+        var fullQuery = buildFullQuery();
         var times = getDurationValues();
         var durationText = getDurationLabel();
         
-        // Show full query with time range info
-        $('#preview-query').text('Query: ' + query + '\nTime Range: ' + durationText + ' (earliest=' + times.earliest + ', latest=' + times.latest + ')');
+        // Show full query with eval fields
+        $('#preview-query').text(fullQuery);
         $('#preview-status').text('Running...').css('color', '#1976d2');
         $('#preview-results').html('<p>Running search...</p>');
         
+        // Run with base query for preview (eval fields shown but not executed for performance)
         var sm = new SearchManager({
             id: 'preview_' + Date.now(),
-            search: query,
+            search: baseQuery,
             earliest_time: times.earliest,
             latest_time: times.latest
         });
@@ -587,14 +651,18 @@ require([
     // ============================================
     function createAlert() {
         var name = $.trim($('#fld_alert_name').val());
-        var query = $.trim($('#fld_query').val());
+        var appName = $.trim($('#fld_app_name').val());
+        var ticketCreation = $('#fld_ticket').val();
+        var priority = $('#fld_priority').val() || 'P3';
+        var eventClass = $.trim($('#fld_eventclass').val());
+        var assignmentGroup = $.trim($('#fld_assignment').val());
+        var orgCode = $.trim($('#fld_orgcode').val());
         var cron = $('#fld_frequency').val();
         var times = getDurationValues();
-        var emailTo = $.trim($('#fld_email').val());
-        var emailSubj = $.trim($('#fld_subject').val());
-        var emailBody = $.trim($('#fld_body').val()) || 'Alert triggered';
         var threshold = $('#fld_threshold').val() || '0';
-        var suppressionMin = parseInt($('#fld_suppression').val()) || 0;
+        
+        // Build full query with all eval fields
+        var fullQuery = buildFullQuery();
         
         // Handle custom cron
         if (cron === 'custom') {
@@ -610,7 +678,7 @@ require([
         
         var params = {
             name: name,
-            search: query,
+            search: fullQuery,
             is_scheduled: '1',
             cron_schedule: cron,
             'dispatch.earliest_time': times.earliest,
@@ -621,23 +689,56 @@ require([
             alert_threshold: threshold
         };
         
-        // Add suppression if specified (convert minutes to seconds)
-        if (suppressionMin > 0) {
-            var suppressionSec = suppressionMin * 60;
-            params['alert.suppress'] = '1';
-            params['alert.suppress.period'] = suppressionSec + 's';
+        // Add throttle/suppression if enabled
+        if ($('#fld_throttle').is(':checked')) {
+            var suppVal = parseInt($('#fld_suppression').val()) || 0;
+            var suppUnit = $('#fld_suppression_unit').val();
+            
+            // Convert to seconds
+            var suppressionSec = suppVal;
+            if (suppUnit === 'm') {
+                suppressionSec = suppVal * 60;
+            } else if (suppUnit === 'h') {
+                suppressionSec = suppVal * 3600;
+            }
+            
+            if (suppressionSec > 0) {
+                params['alert.suppress'] = '1';
+                params['alert.suppress.period'] = suppressionSec + 's';
+            } else {
+                params['alert.suppress'] = '0';
+            }
         } else {
             params['alert.suppress'] = '0';
         }
         
-        // Only add email action if email is provided
-        if (emailTo) {
-            params['actions'] = 'email';
-            params['action.email'] = '1';
-            params['action.email.to'] = emailTo;
-            params['action.email.subject'] = emailSubj || 'Alert: ' + name;
-            params['action.email.message'] = emailBody;
+        // Build actions list
+        var actionsList = [];
+        
+        // Add DFSAlert add-on action (always enabled)
+        actionsList.push('DFSAlert');
+        params['action.DFSAlert'] = '1';
+        params['action.DFSAlert.param.alert_name'] = name;
+        params['action.DFSAlert.param.app_name'] = appName;
+        params['action.DFSAlert.param.ticket_creation'] = ticketCreation;
+        params['action.DFSAlert.param.priority'] = priority;
+        
+        if (ticketCreation === 'yes') {
+            params['action.DFSAlert.param.event_class'] = eventClass;
+            params['action.DFSAlert.param.assignment_group'] = assignmentGroup;
+            params['action.DFSAlert.param.org_code'] = orgCode;
         }
+        
+        // Add Log Event action (always enabled)
+        actionsList.push('logevent');
+        params['action.logevent'] = '1';
+        params['action.logevent.param.index'] = 'main';
+        params['action.logevent.param.source'] = 'alerting_framework';
+        params['action.logevent.param.sourcetype'] = 'alert:dfs';
+        params['action.logevent.param.event'] = 'alert_name="' + name + '" app_name="' + appName + '" ticket_creation="' + ticketCreation + '" priority="' + priority + '"';
+        
+        // Set actions list
+        params['actions'] = actionsList.join(', ');
         
         $.ajax({
             url: Splunk.util.make_url('/splunkd/__raw/servicesNS/nobody/alerting_framework/saved/searches'),
@@ -645,8 +746,8 @@ require([
             data: params,
             headers: { 'X-Splunk-Form-Key': Splunk.util.getFormKey() },
             success: function(response) {
-                $('#form-errors').css('background', '#e8f5e9').css('color', '#2e7d32').html('✓ Alert created successfully: ' + name).show();
-                log('Alert created: ' + name, 'success');
+                $('#form-errors').css('background', '#e8f5e9').css('color', '#2e7d32').html('✓ Alert created successfully: ' + name + ' (with DFSAlert + Log Event actions)').show();
+                log('Alert created: ' + name + ' with DFSAlert + Log Event actions', 'success');
             },
             error: function(xhr, status, error) {
                 var msg = 'Unknown error';
@@ -703,7 +804,11 @@ require([
         $('#fld_frequency').val('*/15 * * * *');
         $('#fld_custom_cron').val('').hide();
         $('#fld_threshold').val('0');
-        $('#fld_suppression').val('0');
+        // Reset throttle
+        $('#fld_throttle').prop('checked', false);
+        $('#throttle-options').hide();
+        $('#fld_suppression').val('60');
+        $('#fld_suppression_unit').val('m');
         hideAllErrors();
         toggleTicketFields();
         isAcknowledged = false;
@@ -727,6 +832,16 @@ require([
         toggleTicketFields();
     });
     
+    // Throttle checkbox change
+    $(document).on('change', '#fld_throttle', function() {
+        if ($(this).is(':checked')) {
+            $('#throttle-options').show();
+        } else {
+            $('#throttle-options').hide();
+        }
+        updateSummary();
+    });
+    
     // Frequency dropdown change - show/hide custom cron input
     $(document).on('change', '#fld_frequency', function() {
         if ($(this).val() === 'custom') {
@@ -743,7 +858,7 @@ require([
     });
     
     // Field input changes
-    $(document).on('input change', '#fld_alert_name, #fld_app_name, #fld_query, #fld_email, #fld_subject, #fld_priority, #fld_threshold, #fld_suppression', function() {
+    $(document).on('input change', '#fld_alert_name, #fld_app_name, #fld_query, #fld_email, #fld_subject, #fld_priority, #fld_threshold, #fld_suppression, #fld_suppression_unit', function() {
         updateSummary();
     });
     
@@ -832,8 +947,19 @@ require([
             // Threshold
             $('#fld_threshold').val(tpl.threshold || '0');
             
-            // Suppression (in minutes)
-            $('#fld_suppression').val(tpl.suppression || '0');
+            // Throttle/Suppression - enable if suppression > 0
+            var suppVal = parseInt(tpl.suppression) || 0;
+            if (suppVal > 0) {
+                $('#fld_throttle').prop('checked', true);
+                $('#throttle-options').show();
+                $('#fld_suppression').val(suppVal);
+                $('#fld_suppression_unit').val('m'); // Templates store in minutes
+            } else {
+                $('#fld_throttle').prop('checked', false);
+                $('#throttle-options').hide();
+                $('#fld_suppression').val('60');
+                $('#fld_suppression_unit').val('m');
+            }
             
             // Toggle ticket fields visibility
             toggleTicketFields();

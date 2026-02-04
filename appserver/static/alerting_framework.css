@@ -1,6 +1,121 @@
-/* Alerting Framework CSS */
-.btn-lg { padding: 10px 25px !important; font-size: 16px !important; }
-.input-error { border-color: #c62828 !important; background-color: #fff5f5 !important; }
+/* Alerting Framework CSS - Option 1 Grouped Cards Layout */
+
+/* Make dashboard full width */
+.dashboard-body .dashboard-row {
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+.dashboard-body .dashboard-cell {
+    width: 100% !important;
+}
+
+.dashboard-body .panel-body {
+    max-width: 100% !important;
+}
+
+.dashboard-body .html {
+    max-width: 100% !important;
+}
+
+/* Quick Start panels - equal width and contained */
+#quick_start_content .dashboard-cell {
+    width: 33.33% !important;
+    min-width: 0 !important;
+}
+
+#quick_start_content .panel-body {
+    overflow: hidden !important;
+}
+
+/* Form Container */
+.alert-form-container {
+    max-width: 100%;
+}
+
+/* Form Card Styling */
+.form-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.form-card:hover {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+/* Form Labels */
+.form-label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 6px;
+    color: #333;
+    font-size: 13px;
+}
+
+/* Form Inputs */
+.form-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #2196f3;
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.form-input:hover {
+    border-color: #999;
+}
+
+/* Error styling */
+.form-error {
+    color: #c62828;
+    font-size: 12px;
+    margin-top: 4px;
+    display: none;
+}
+
+.form-error-box {
+    display: none;
+    background: #ffebee;
+    color: #c62828;
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin-top: 15px;
+    border-left: 4px solid #c62828;
+}
+
+.input-error {
+    border-color: #c62828 !important;
+    background-color: #fff5f5 !important;
+}
+
+/* Button styling */
+.btn-lg {
+    padding: 12px 30px !important;
+    font-size: 15px !important;
+    border-radius: 4px !important;
+}
+
+.btn-primary {
+    background: #4caf50 !important;
+    border-color: #4caf50 !important;
+    color: white !important;
+}
+
+.btn-primary:hover {
+    background: #43a047 !important;
+    border-color: #43a047 !important;
+}
 
 /* Hide the fieldset - time picker will be moved via JS */
 .dashboard-body .fieldset,
@@ -27,7 +142,7 @@
 #duration_picker_target .dropdown-toggle {
     width: 100% !important;
     text-align: left !important;
-    padding: 8px 12px !important;
+    padding: 10px 12px !important;
     border: 1px solid #ccc !important;
     border-radius: 4px !important;
     background: white !important;
@@ -42,4 +157,94 @@
 #duration_picker_target .caret {
     float: right;
     margin-top: 8px;
+}
+
+/* Macros/Examples/Templates containers */
+#macros-container,
+#examples-container,
+#templates-container {
+    max-height: 250px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+#macros-container > div,
+#templates-container > div {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+}
+
+#macros-container code,
+#macros-container .macro-def {
+    font-size: 10px !important;
+    word-break: break-all !important;
+    white-space: pre-wrap !important;
+    display: block;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+#examples-container code {
+    font-size: 10px !important;
+    word-break: break-all !important;
+    white-space: pre-wrap !important;
+}
+
+#templates-container code,
+#templates-container .template-query {
+    font-size: 9px !important;
+    word-break: break-all !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block;
+    max-width: 100%;
+}
+
+/* Ticket fields container */
+#ticket-fields-container {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Throttle options */
+#throttle-options {
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Success message styling */
+.success-message {
+    background: #e8f5e9 !important;
+    color: #2e7d32 !important;
+    border-left: 4px solid #2e7d32 !important;
+}
+
+/* Preview query box */
+#preview-query {
+    background: #263238;
+    color: #80cbc4;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    border-radius: 4px;
+    padding: 15px;
 }
