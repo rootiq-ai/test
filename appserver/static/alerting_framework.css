@@ -1,5 +1,25 @@
 /* Alerting Framework CSS - Option 1 Grouped Cards Layout */
 
+/* Hide Splunk favorite star icon - specific selectors for cross-version compatibility */
+.dashboard-header .star,
+.dashboard-header .icon-star,
+.dashboard-header .icon-star-empty,
+.dashboard-header [data-action="favorite"],
+.dashboard-header .bookmark {
+    display: none !important;
+}
+
+/* Hide default fieldset/timepicker that Splunk adds at top */
+.dashboard-body .fieldset,
+.dashboard-body .dashboard-form-globalfieldset {
+    display: none !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
 /* Make dashboard full width */
 .dashboard-body .dashboard-row {
     max-width: 100% !important;
@@ -56,14 +76,35 @@
     font-size: 13px;
 }
 
-/* Form Inputs */
+/* Form Inputs - cross-version compatibility */
 .form-input {
     width: 100%;
     padding: 10px 12px;
     border: 1px solid #ccc;
     border-radius: 4px;
     font-size: 14px;
+    line-height: 1.4;
+    color: #333;
+    background-color: #fff;
+    background-image: none;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
     transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+select.form-input {
+    -webkit-appearance: menulist;
+    -moz-appearance: menulist;
+    appearance: menulist;
+    cursor: pointer;
+    padding-right: 30px;
+}
+
+textarea.form-input {
+    resize: vertical;
+    min-height: 60px;
 }
 
 .form-input:focus {
@@ -115,17 +156,6 @@
 .btn-primary:hover {
     background: #43a047 !important;
     border-color: #43a047 !important;
-}
-
-/* Hide the fieldset - time picker will be moved via JS */
-.dashboard-body .fieldset,
-.dashboard-body .dashboard-form-globalfieldset { 
-    display: block;
-    margin: 0 !important;
-    padding: 0 !important;
-    min-height: 0 !important;
-    border: none !important;
-    background: transparent !important;
 }
 
 /* Time picker in form row */

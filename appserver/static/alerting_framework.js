@@ -6,152 +6,76 @@ require([
     'splunkjs/mvc/searchmanager'
 ], function($, _, mvc, ready, SearchManager) {
     
+    // ============================================
+    // CROSS-VERSION COMPATIBILITY (Splunk 9.x + 10.x)
+    // ============================================
+    function makeUrl(path) {
+        // Try multiple methods for URL construction
+        try {
+            if (typeof Splunk !== 'undefined' && Splunk.util && Splunk.util.make_url) {
+                return Splunk.util.make_url(path);
+            }
+        } catch(e) {}
+        
+        // Fallback: construct from window.location
+        var prefix = '';
+        var match = window.location.pathname.match(/^(\/[^\/]+)/);
+        if (match && match[1] !== '/en-US' && match[1] !== '/splunkd') {
+            prefix = match[1];
+        }
+        // Check for locale prefix like /en-US
+        var localeMatch = window.location.pathname.match(/^(\/[a-z]{2}-[A-Z]{2})/);
+        if (localeMatch) {
+            prefix = localeMatch[1];
+        }
+        return prefix + path;
+    }
+    
+    function getFormKey() {
+        // Try multiple methods for form key
+        try {
+            if (typeof Splunk !== 'undefined' && Splunk.util && Splunk.util.getFormKey) {
+                return Splunk.util.getFormKey();
+            }
+        } catch(e) {}
+        
+        // Fallback: look for splunkweb_csrf_token cookie
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = $.trim(cookies[i]);
+            if (cookie.indexOf('splunkweb_csrf_token_') === 0) {
+                return cookie.split('=')[1];
+            }
+        }
+        
+        // Fallback: look for hidden input
+        var csrfInput = $('input[name="splunk_form_key"]');
+        if (csrfInput.length > 0) {
+            return csrfInput.val();
+        }
+        
+        return '';
+    }
+    
     // State
     var isAcknowledged = false;
     var macrosList = [];
     var templatesList = [];
     
-    // Get token models for time picker
+    // Get token models (kept for compatibility)
     var defaultTokens = mvc.Components.get('default');
     var submittedTokens = mvc.Components.get('submitted');
     
-    // Move time picker from fieldset to form row
-    function moveTimePicker() {
-        var attempts = 0;
-        var maxAttempts = 20;
-        
-        function tryMove() {
-            attempts++;
-            
-            // Find the time picker in fieldset
-            var $fieldset = $('.fieldset, .dashboard-form-globalfieldset');
-            var $timeInput = $fieldset.find('.input-timerangepicker, .splunk-timerange, [data-view="views/shared/timerangepicker/Master"]').first();
-            
-            if ($timeInput.length === 0) {
-                // Try alternative selectors
-                $timeInput = $fieldset.find('.btn-group').has('.dropdown-toggle').first();
-            }
-            
-            if ($timeInput.length === 0) {
-                // Try to find by class pattern
-                $timeInput = $fieldset.find('[class*="timerange"]').first();
-            }
-            
-            if ($timeInput.length > 0) {
-                // Move the time picker element
-                $('#duration_picker_target').empty().append($timeInput);
-                
-                // Style it
-                $timeInput.css({
-                    'width': '100%'
-                });
-                $timeInput.find('.btn').css({
-                    'width': '100%',
-                    'text-align': 'left',
-                    'padding': '8px 12px',
-                    'border': '1px solid #ccc',
-                    'border-radius': '4px'
-                });
-                
-                // Hide the empty fieldset
-                $fieldset.hide();
-                
-                log('Time picker moved to form row', 'success');
-                return true;
-            } else if (attempts < maxAttempts) {
-                setTimeout(tryMove, 250);
-                return false;
-            } else {
-                log('Could not find time picker, using fallback', 'info');
-                createFallbackPicker();
-                $fieldset.hide();
-                return false;
-            }
-        }
-        
-        tryMove();
-    }
-    
-    // Fallback dropdown if move fails
-    function createFallbackPicker() {
-        var html = '<select id="fld_duration_fallback" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;">' +
-            '<option value="-1m">Last 1 minute</option>' +
-            '<option value="-5m">Last 5 minutes</option>' +
-            '<option value="-15m" selected>Last 15 minutes</option>' +
-            '<option value="-30m">Last 30 minutes</option>' +
-            '<option value="-1h">Last 1 hour</option>' +
-            '<option value="-4h">Last 4 hours</option>' +
-            '<option value="-24h">Last 24 hours</option>' +
-            '<option value="-7d">Last 7 days</option>' +
-            '<option value="-30d">Last 30 days</option>' +
-            '<option value="@d">Today</option>' +
-            '<option value="-1d@d">Yesterday</option>' +
-            '<option value="@w0">This week</option>' +
-            '<option value="@mon">This month</option>' +
-            '<option value="0">All time</option>' +
-            '</select>';
-        $('#duration_picker_target').html(html);
-        
-        $(document).on('change', '#fld_duration_fallback', function() {
-            // Update tokens manually for fallback
-            if (defaultTokens) {
-                defaultTokens.set('duration_token.earliest', $(this).val());
-                defaultTokens.set('duration_token.latest', 'now');
-            }
-            updateSummary();
-        });
-    }
-    
-    // Helper to get duration values from tokens
+    // Helper to get duration values from dropdown
     function getDurationValues() {
-        var earliest = '-15m';
-        var latest = 'now';
-        
-        // Check fallback first
-        if ($('#fld_duration_fallback').length) {
-            return { earliest: $('#fld_duration_fallback').val() || '-15m', latest: 'now' };
-        }
-        
-        if (defaultTokens) {
-            earliest = defaultTokens.get('duration_token.earliest') || defaultTokens.get('earliest') || '-15m';
-            latest = defaultTokens.get('duration_token.latest') || defaultTokens.get('latest') || 'now';
-        }
-        
-        return { earliest: earliest, latest: latest };
+        var val = $('#fld_duration').val() || '-15m|now';
+        var parts = val.split('|');
+        return { earliest: parts[0], latest: parts[1] || 'now' };
     }
     
     // Helper to get human-readable duration
     function getDurationLabel() {
-        // Check fallback first
-        if ($('#fld_duration_fallback').length) {
-            return $('#fld_duration_fallback option:selected').text() || 'Last 15 minutes';
-        }
-        
-        var times = getDurationValues();
-        var earliest = times.earliest;
-        
-        var labels = {
-            '-1m': 'Last 1 minute',
-            '-5m': 'Last 5 minutes',
-            '-15m': 'Last 15 minutes',
-            '-30m': 'Last 30 minutes',
-            '-60m': 'Last 60 minutes',
-            '-1h': 'Last 1 hour',
-            '-4h': 'Last 4 hours',
-            '-24h': 'Last 24 hours',
-            '-7d': 'Last 7 days',
-            '-30d': 'Last 30 days',
-            '@d': 'Today',
-            '-1d@d': 'Yesterday',
-            '@w0': 'This week',
-            '@mon': 'This month',
-            '0': 'All time'
-        };
-        
-        if (labels[earliest]) {
-            return labels[earliest];
-        }
-        return earliest + ' to ' + times.latest;
+        return $('#fld_duration option:selected').text() || 'Last 15 minutes';
     }
     
     // ============================================
@@ -741,10 +665,10 @@ require([
         params['actions'] = actionsList.join(', ');
         
         $.ajax({
-            url: Splunk.util.make_url('/splunkd/__raw/servicesNS/nobody/alerting_framework/saved/searches'),
+            url: makeUrl('/splunkd/__raw/servicesNS/nobody/alerting_framework/saved/searches'),
             type: 'POST',
             data: params,
-            headers: { 'X-Splunk-Form-Key': Splunk.util.getFormKey() },
+            headers: { 'X-Splunk-Form-Key': getFormKey() },
             success: function(response) {
                 $('#form-errors').css('background', '#e8f5e9').css('color', '#2e7d32').html('✓ Alert created successfully: ' + name + ' (with DFSAlert + Log Event actions)').show();
                 log('Alert created: ' + name + ' with DFSAlert + Log Event actions', 'success');
@@ -793,14 +717,8 @@ require([
         $('#fld_alert_name, #fld_app_name, #fld_eventclass, #fld_assignment, #fld_orgcode, #fld_query, #fld_email, #fld_subject, #fld_body').val('');
         $('#fld_ticket').val('no');
         $('#fld_priority').val('P3');
-        // Reset time picker (fallback or tokens)
-        if ($('#fld_duration_fallback').length) {
-            $('#fld_duration_fallback').val('-15m');
-        }
-        if (defaultTokens) {
-            defaultTokens.set('duration_token.earliest', '-15m');
-            defaultTokens.set('duration_token.latest', 'now');
-        }
+        // Reset duration dropdown
+        $('#fld_duration').val('-15m|now');
         $('#fld_frequency').val('*/15 * * * *');
         $('#fld_custom_cron').val('').hide();
         $('#fld_threshold').val('0');
@@ -927,14 +845,16 @@ require([
             // Priority
             $('#fld_priority').val(tpl.priority);
             
-            // Duration - set token if available
-            if (tpl.duration && defaultTokens) {
-                defaultTokens.set('duration_token.earliest', tpl.duration);
-                defaultTokens.set('duration_token.latest', 'now');
-            }
-            // Also set fallback dropdown if exists
-            if ($('#fld_duration_fallback').length && tpl.duration) {
-                $('#fld_duration_fallback').val(tpl.duration);
+            // Duration - set the dropdown value
+            if (tpl.duration) {
+                // Try to find matching value in dropdown
+                var durationValue = tpl.duration + '|now';
+                if ($('#fld_duration option[value="' + durationValue + '"]').length) {
+                    $('#fld_duration').val(durationValue);
+                } else {
+                    // Default to -15m if not found
+                    $('#fld_duration').val('-15m|now');
+                }
             }
             
             // Frequency
@@ -1188,18 +1108,16 @@ require([
             $('#qs-icon').text('▶');
         }, 100);
         
-        // Move time picker to form row
+        // Hide the fieldset (time picker input is now a dropdown)
         setTimeout(function() {
-            moveTimePicker();
-        }, 300);
+            $('.fieldset, .dashboard-form-globalfieldset').hide();
+        }, 100);
         
-        // Listen for time picker token changes
-        if (defaultTokens) {
-            defaultTokens.on('change:duration_token.earliest change:duration_token.latest', function() {
-                updateSummary();
-                log('Time range changed: ' + getDurationLabel(), 'info');
-            });
-        }
+        // Listen for duration dropdown changes
+        $(document).on('change', '#fld_duration', function() {
+            updateSummary();
+            log('Duration changed: ' + getDurationLabel(), 'info');
+        });
         
         loadMacros();
         loadTemplates();

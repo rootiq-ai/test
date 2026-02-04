@@ -5,6 +5,43 @@ require([
     'splunkjs/mvc/simplexml/ready!'
 ], function($, _, mvc) {
     
+    // ============================================
+    // CROSS-VERSION COMPATIBILITY (Splunk 9.x + 10.x)
+    // ============================================
+    function makeUrl(path) {
+        try {
+            if (typeof Splunk !== 'undefined' && Splunk.util && Splunk.util.make_url) {
+                return Splunk.util.make_url(path);
+            }
+        } catch(e) {}
+        var prefix = '';
+        var localeMatch = window.location.pathname.match(/^(\/[a-z]{2}-[A-Z]{2})/);
+        if (localeMatch) {
+            prefix = localeMatch[1];
+        }
+        return prefix + path;
+    }
+    
+    function getFormKey() {
+        try {
+            if (typeof Splunk !== 'undefined' && Splunk.util && Splunk.util.getFormKey) {
+                return Splunk.util.getFormKey();
+            }
+        } catch(e) {}
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = $.trim(cookies[i]);
+            if (cookie.indexOf('splunkweb_csrf_token_') === 0) {
+                return cookie.split('=')[1];
+            }
+        }
+        var csrfInput = $('input[name="splunk_form_key"]');
+        if (csrfInput.length > 0) {
+            return csrfInput.val();
+        }
+        return '';
+    }
+    
     // State
     var allAlerts = [];
     var filteredAlerts = [];
@@ -31,7 +68,7 @@ require([
         $('#alerts-tbody').html('<tr><td colspan="7" style="text-align:center;padding:40px;"><span class="loading-text">Loading...</span></td></tr>');
         
         $.ajax({
-            url: Splunk.util.make_url('/splunkd/__raw/servicesNS/-/-/saved/searches'),
+            url: makeUrl('/splunkd/__raw/servicesNS/-/-/saved/searches'),
             type: 'GET',
             data: {
                 output_mode: 'json',
@@ -330,10 +367,10 @@ require([
         log('Enabling alert: ' + alertName, 'info');
         
         $.ajax({
-            url: Splunk.util.make_url('/splunkd/__raw/servicesNS/-/-/saved/searches/' + encodeURIComponent(alertName)),
+            url: makeUrl('/splunkd/__raw/servicesNS/-/-/saved/searches/' + encodeURIComponent(alertName)),
             type: 'POST',
             data: { disabled: '0' },
-            headers: { 'X-Splunk-Form-Key': Splunk.util.getFormKey() },
+            headers: { 'X-Splunk-Form-Key': getFormKey() },
             success: function() {
                 log('Alert enabled: ' + alertName, 'success');
                 if (callback) callback(true);
@@ -349,10 +386,10 @@ require([
         log('Disabling alert: ' + alertName, 'info');
         
         $.ajax({
-            url: Splunk.util.make_url('/splunkd/__raw/servicesNS/-/-/saved/searches/' + encodeURIComponent(alertName)),
+            url: makeUrl('/splunkd/__raw/servicesNS/-/-/saved/searches/' + encodeURIComponent(alertName)),
             type: 'POST',
             data: { disabled: '1' },
-            headers: { 'X-Splunk-Form-Key': Splunk.util.getFormKey() },
+            headers: { 'X-Splunk-Form-Key': getFormKey() },
             success: function() {
                 log('Alert disabled: ' + alertName, 'success');
                 if (callback) callback(true);
@@ -371,9 +408,9 @@ require([
         log('Deleting alert: ' + alertName, 'info');
         
         $.ajax({
-            url: Splunk.util.make_url('/splunkd/__raw/servicesNS/-/-/saved/searches/' + encodeURIComponent(alertName)),
+            url: makeUrl('/splunkd/__raw/servicesNS/-/-/saved/searches/' + encodeURIComponent(alertName)),
             type: 'DELETE',
-            headers: { 'X-Splunk-Form-Key': Splunk.util.getFormKey() },
+            headers: { 'X-Splunk-Form-Key': getFormKey() },
             success: function() {
                 log('Alert deleted: ' + alertName, 'success');
                 if (callback) callback(true);
@@ -545,7 +582,7 @@ require([
         e.stopPropagation();
         var name = $(this).data('name');
         // Navigate to alerting framework with alert name as parameter - open in new tab
-        window.open(Splunk.util.make_url('/app/alerting_framework/alerting_framework?alert=' + encodeURIComponent(name)), '_blank');
+        window.open(makeUrl('/app/alerting_framework/alerting_framework?alert=' + encodeURIComponent(name)), '_blank');
     });
     
     $(document).on('click', '.btn-enable', function(e) {
@@ -619,7 +656,7 @@ require([
     // Modal action buttons
     $(document).on('click', '#btn-modal-edit', function() {
         if (currentAlertData) {
-            window.open(Splunk.util.make_url('/app/alerting_framework/alerting_framework?alert=' + encodeURIComponent(currentAlertData.name)), '_blank');
+            window.open(makeUrl('/app/alerting_framework/alerting_framework?alert=' + encodeURIComponent(currentAlertData.name)), '_blank');
         }
     });
     

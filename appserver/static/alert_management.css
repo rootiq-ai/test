@@ -1,5 +1,24 @@
 /* Alert Management Dashboard CSS */
 
+/* Hide Splunk favorite star icon - specific selectors for cross-version compatibility */
+.dashboard-header .star,
+.dashboard-header .icon-star,
+.dashboard-header .icon-star-empty,
+.dashboard-header [data-action="favorite"],
+.dashboard-header .bookmark {
+    display: none !important;
+}
+
+/* Hide default fieldset/timepicker */
+.dashboard-body .fieldset,
+.dashboard-body .dashboard-form-globalfieldset {
+    display: none !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
 /* Header */
 .mgmt-header {
     display: flex;
@@ -94,6 +113,13 @@
     background: white;
     cursor: pointer;
     min-width: 120px;
+    color: #333;
+    -webkit-appearance: menulist;
+    -moz-appearance: menulist;
+    appearance: menulist;
+    box-sizing: border-box;
+    height: auto;
+    line-height: 1.4;
 }
 
 /* Buttons */
