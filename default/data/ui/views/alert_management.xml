@@ -1,0 +1,218 @@
+<dashboard version="1.1" script="alert_management.js" stylesheet="alert_management.css">
+  <label>Alert Management</label>
+  <description>View, edit, enable/disable, and delete alerts and reports - by Kamal Bisht</description>
+  
+  <row>
+    <panel>
+      <html>
+        <div class="mgmt-header">
+          <div class="mgmt-title">
+            <h2>Alert &amp; Report Management</h2>
+            <p>Manage all your saved searches, alerts, and reports in one place</p>
+          </div>
+          <div class="mgmt-stats">
+            <div class="stat-box">
+              <span class="stat-number" id="total-count">0</span>
+              <span class="stat-label">Total</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-number" id="enabled-count">0</span>
+              <span class="stat-label">Enabled</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-number" id="disabled-count">0</span>
+              <span class="stat-label">Disabled</span>
+            </div>
+          </div>
+        </div>
+      </html>
+    </panel>
+  </row>
+  
+  <row>
+    <panel>
+      <html>
+        <div class="mgmt-toolbar">
+          <div class="toolbar-left">
+            <input type="text" id="search-input" class="search-box" placeholder="Search alert name..." />
+            <input type="text" id="search-query" class="search-box" placeholder="Search in SPL query..." />
+            <select id="filter-app" class="filter-select">
+              <option value="all">All Apps</option>
+            </select>
+            <select id="filter-type" class="filter-select">
+              <option value="all">All Types</option>
+              <option value="alert">Alerts Only</option>
+              <option value="report">Reports Only</option>
+            </select>
+            <select id="filter-status" class="filter-select">
+              <option value="all">All Status</option>
+              <option value="enabled">Enabled</option>
+              <option value="disabled">Disabled</option>
+            </select>
+            <button class="btn btn-default" id="btn-refresh">
+              <i class="icon-refresh"></i> Refresh
+            </button>
+          </div>
+          <div class="toolbar-right">
+            <button class="btn btn-success" id="btn-bulk-enable" disabled="disabled">
+              <i class="icon-check"></i> Enable Selected
+            </button>
+            <button class="btn btn-warning" id="btn-bulk-disable" disabled="disabled">
+              <i class="icon-minus"></i> Disable Selected
+            </button>
+            <button class="btn btn-danger" id="btn-bulk-delete" disabled="disabled">
+              <i class="icon-trash"></i> Delete Selected
+            </button>
+          </div>
+        </div>
+      </html>
+    </panel>
+  </row>
+  
+  <row>
+    <panel>
+      <html>
+        <div class="alerts-container">
+          <table class="alerts-table" id="alerts-table">
+            <thead>
+              <tr>
+                <th class="col-checkbox">
+                  <input type="checkbox" id="select-all" title="Select All"/>
+                </th>
+                <th class="col-name">Name</th>
+                <th class="col-app">App</th>
+                <th class="col-type">Type</th>
+                <th class="col-status">Status</th>
+                <th class="col-owner">Owner</th>
+                <th class="col-schedule">Schedule</th>
+                <th class="col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="alerts-tbody">
+              <tr>
+                <td colspan="8" style="text-align:center;padding:40px;">
+                  <span class="loading-text">Loading alerts and reports...</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination-container" id="pagination">
+          <span id="showing-text">Showing 0 of 0</span>
+          <div class="pagination-buttons">
+            <button class="btn btn-sm" id="btn-prev" disabled="disabled">Previous</button>
+            <span id="page-info">Page 1</span>
+            <button class="btn btn-sm" id="btn-next" disabled="disabled">Next</button>
+          </div>
+        </div>
+      </html>
+    </panel>
+  </row>
+  
+  <!-- Alert Details Modal -->
+  <row>
+    <panel>
+      <html>
+        <div id="alert-modal" class="modal-overlay" style="display:none;">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3 id="modal-title">Alert Details</h3>
+              <button class="modal-close" id="modal-close">×</button>
+            </div>
+            <div class="modal-body">
+              <div class="detail-grid">
+                <div class="detail-row">
+                  <label>Name:</label>
+                  <span id="detail-name">-</span>
+                </div>
+                <div class="detail-row">
+                  <label>Type:</label>
+                  <span id="detail-type">-</span>
+                </div>
+                <div class="detail-row">
+                  <label>Status:</label>
+                  <span id="detail-status">-</span>
+                </div>
+                <div class="detail-row">
+                  <label>Owner:</label>
+                  <span id="detail-owner">-</span>
+                </div>
+                <div class="detail-row">
+                  <label>App:</label>
+                  <span id="detail-app">-</span>
+                </div>
+                <div class="detail-row">
+                  <label>Schedule (Cron):</label>
+                  <span id="detail-cron">-</span>
+                </div>
+                <div class="detail-row">
+                  <label>Time Range:</label>
+                  <span id="detail-timerange">-</span>
+                </div>
+                <div class="detail-row">
+                  <label>Trigger Condition:</label>
+                  <span id="detail-trigger">-</span>
+                </div>
+                <div class="detail-row">
+                  <label>Actions:</label>
+                  <span id="detail-actions">-</span>
+                </div>
+                <div class="detail-row">
+                  <label>Throttle:</label>
+                  <span id="detail-throttle">-</span>
+                </div>
+                <div class="detail-row full-width">
+                  <label>Splunk Query:</label>
+                  <pre id="detail-query">-</pre>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-primary" id="btn-modal-edit">Edit in Alerting Framework</button>
+              <button class="btn btn-success" id="btn-modal-enable">Enable</button>
+              <button class="btn btn-warning" id="btn-modal-disable">Disable</button>
+              <button class="btn btn-danger" id="btn-modal-delete">Delete</button>
+              <button class="btn btn-default" id="btn-modal-close">Close</button>
+            </div>
+          </div>
+        </div>
+      </html>
+    </panel>
+  </row>
+  
+  <!-- Confirmation Modal -->
+  <row>
+    <panel>
+      <html>
+        <div id="confirm-modal" class="modal-overlay" style="display:none;">
+          <div class="modal-content modal-small">
+            <div class="modal-header">
+              <h3 id="confirm-title">Confirm Action</h3>
+              <button class="modal-close" id="confirm-close">×</button>
+            </div>
+            <div class="modal-body">
+              <p id="confirm-message">Are you sure?</p>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-danger" id="btn-confirm-yes">Yes, Proceed</button>
+              <button class="btn btn-default" id="btn-confirm-no">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </html>
+    </panel>
+  </row>
+  
+  <row>
+    <panel>
+      <title>Activity Log</title>
+      <html>
+        <button class="btn btn-default btn-sm" id="btn-clear-log">Clear Log</button>
+        <div id="activity-log" class="activity-log">
+          <div class="log-entry">[Ready] Alert Management Dashboard loaded</div>
+        </div>
+      </html>
+    </panel>
+  </row>
+  
+</dashboard>
