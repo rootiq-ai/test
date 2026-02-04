@@ -1,4 +1,4 @@
-<dashboard version="1.1" script="alert_management.js" stylesheet="alert_management.css">
+<dashboard version="1.1" script="alert_management.js" stylesheet="alert_management.css" hideFilters="true">
   <label>Alert Management</label>
   <description>View, edit, enable/disable, and delete alerts and reports - by Kamal Bisht</description>
   
