@@ -447,24 +447,25 @@
     text-transform: uppercase;
 }
 
-.detail-row span,
-.detail-row pre {
+.detail-row span {
     color: #333;
     font-size: 14px;
 }
 
-.detail-row pre {
-    background: #263238;
-    color: #80cbc4;
-    padding: 15px;
-    border-radius: 4px;
+#detail-query {
+    background: #263238 !important;
+    color: #e0e0e0 !important;
+    padding: 15px !important;
+    border-radius: 6px;
     overflow-x: auto;
     white-space: pre-wrap;
     word-wrap: break-word;
     font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 12px;
-    max-height: 200px;
+    font-size: 13px;
+    max-height: 250px;
     overflow-y: auto;
+    border: 1px solid #37474f;
+    line-height: 1.5;
 }
 
 /* Activity Log */

@@ -203,16 +203,4 @@
     </panel>
   </row>
   
-  <row>
-    <panel>
-      <title>Activity Log</title>
-      <html>
-        <button class="btn btn-default btn-sm" id="btn-clear-log">Clear Log</button>
-        <div id="activity-log" class="activity-log">
-          <div class="log-entry">[Ready] Alert Management Dashboard loaded</div>
-        </div>
-      </html>
-    </panel>
-  </row>
-  
 </dashboard>

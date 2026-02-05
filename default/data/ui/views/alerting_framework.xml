@@ -169,24 +169,99 @@
             <!-- Right: Schedule and Trigger -->
             <div class="form-card" style="flex:1;">
               <div style="display:flex;gap:15px;margin-bottom:12px;">
-                <div style="flex:1;">
+                <div style="flex:1;position:relative;">
                   <label class="form-label">Duration</label>
-                  <select id="fld_duration" class="form-input">
-                    <option value="-1m|now">Last 1 minute</option>
-                    <option value="-5m|now">Last 5 minutes</option>
-                    <option value="-15m|now" selected="selected">Last 15 minutes</option>
-                    <option value="-30m|now">Last 30 minutes</option>
-                    <option value="-1h|now">Last 1 hour</option>
-                    <option value="-4h|now">Last 4 hours</option>
-                    <option value="-24h|now">Last 24 hours</option>
-                    <option value="-7d|now">Last 7 days</option>
-                    <option value="-30d|now">Last 30 days</option>
-                    <option value="@d|now">Today</option>
-                    <option value="-1d@d|@d">Yesterday</option>
-                    <option value="@w0|now">This week</option>
-                    <option value="@mon|now">This month</option>
-                    <option value="0|now">All time</option>
-                  </select>
+                  <div id="tp-wrap" style="position:relative;">
+                    <button type="button" id="tp-btn" style="display:flex;align-items:center;width:100%;padding:7px 10px;background:#fff;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:13px;text-align:left;color:#333;">
+                      <span style="margin-right:6px;color:#999;">&#128339;</span>
+                      <span id="tp-label" style="flex:1;">Last 15 minutes</span>
+                      <span style="color:#999;font-size:10px;">&#9662;</span>
+                    </button>
+                    <div id="tp-menu" style="display:none;position:absolute;top:100%;left:0;width:420px;background:#fff;border:1px solid #ccc;border-radius:4px;box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:12000;margin-top:2px;">
+                      <!-- Accordion: Presets -->
+                      <div class="tp-acc-head tp-acc-open" data-sec="presets" style="padding:9px 14px;font-size:13px;color:#5ba1cf;cursor:pointer;border-bottom:1px solid #eee;font-weight:500;">
+                        <span class="tp-arrow" style="display:inline-block;font-size:10px;margin-right:5px;">&#9662;</span>Presets
+                      </div>
+                      <div class="tp-acc-body" data-sec="presets" style="max-height:220px;overflow-y:auto;">
+                        <a class="tp-opt" data-e="-5m" data-l="now" href="#">Last 5 minutes</a>
+                        <a class="tp-opt tp-opt-sel" data-e="-15m" data-l="now" href="#">Last 15 minutes</a>
+                        <a class="tp-opt" data-e="-30m" data-l="now" href="#">Last 30 minutes</a>
+                        <a class="tp-opt" data-e="-60m" data-l="now" href="#">Last 60 minutes</a>
+                        <a class="tp-opt" data-e="-4h" data-l="now" href="#">Last 4 hours</a>
+                        <a class="tp-opt" data-e="-24h" data-l="now" href="#">Last 24 hours</a>
+                        <a class="tp-opt" data-e="-7d" data-l="now" href="#">Last 7 days</a>
+                        <a class="tp-opt" data-e="-30d" data-l="now" href="#">Last 30 days</a>
+                        <a class="tp-opt" data-e="@d" data-l="now" href="#">Today</a>
+                        <a class="tp-opt" data-e="-1d@d" data-l="@d" href="#">Yesterday</a>
+                        <a class="tp-opt" data-e="@w0" data-l="now" href="#">Week to date</a>
+                        <a class="tp-opt" data-e="0" data-l="now" href="#">All time</a>
+                      </div>
+                      <!-- Accordion: Relative -->
+                      <div class="tp-acc-head" data-sec="relative" style="padding:9px 14px;font-size:13px;color:#5ba1cf;cursor:pointer;border-bottom:1px solid #eee;font-weight:500;">
+                        <span class="tp-arrow" style="display:inline-block;font-size:10px;margin-right:5px;">&#9656;</span>Relative
+                      </div>
+                      <div class="tp-acc-body" data-sec="relative" style="display:none;padding:12px 14px;">
+                        <div style="display:flex;gap:24px;">
+                          <div style="flex:1;">
+                            <div style="font-weight:600;font-size:12px;margin-bottom:6px;">Earliest:</div>
+                            <div style="display:flex;gap:6px;margin-bottom:8px;">
+                              <input type="number" id="tp-rel-num" value="15" min="1" style="width:55px;padding:5px 7px;border:1px solid #ccc;border-radius:3px;font-size:13px;"/>
+                              <select id="tp-rel-unit" style="padding:5px;border:1px solid #ccc;border-radius:3px;font-size:13px;">
+                                <option value="m">Minutes Ago</option>
+                                <option value="h">Hours Ago</option>
+                                <option value="d">Days Ago</option>
+                                <option value="w">Weeks Ago</option>
+                                <option value="mon">Months Ago</option>
+                              </select>
+                            </div>
+                            <label style="display:block;font-size:12px;margin-bottom:3px;cursor:pointer;"><input type="radio" name="tp-snap" value="none" checked="checked" style="margin-right:4px;"/>No snap-to</label>
+                            <label style="display:block;font-size:12px;cursor:pointer;"><input type="radio" name="tp-snap" value="@m" style="margin-right:4px;"/>Beginning of minute</label>
+                          </div>
+                          <div style="flex:1;">
+                            <div style="font-weight:600;font-size:12px;margin-bottom:6px;">Latest:</div>
+                            <label style="display:block;font-size:12px;margin-bottom:3px;cursor:pointer;"><input type="radio" name="tp-lat" value="now" checked="checked" style="margin-right:4px;"/>Now</label>
+                            <label style="display:block;font-size:12px;cursor:pointer;"><input type="radio" name="tp-lat" value="@m" style="margin-right:4px;"/>Beginning of current minute</label>
+                          </div>
+                        </div>
+                        <div style="text-align:right;margin-top:10px;">
+                          <button type="button" id="tp-rel-apply" class="btn btn-primary btn-sm">Apply</button>
+                        </div>
+                      </div>
+                      <!-- Accordion: Real-time -->
+                      <div class="tp-acc-head" data-sec="realtime" style="padding:9px 14px;font-size:13px;color:#5ba1cf;cursor:pointer;border-bottom:1px solid #eee;font-weight:500;">
+                        <span class="tp-arrow" style="display:inline-block;font-size:10px;margin-right:5px;">&#9656;</span>Real-time
+                      </div>
+                      <div class="tp-acc-body" data-sec="realtime" style="display:none;">
+                        <a class="tp-opt" data-e="rt-30s" data-l="rt" href="#">30 second window</a>
+                        <a class="tp-opt" data-e="rt-1m" data-l="rt" href="#">1 minute window</a>
+                        <a class="tp-opt" data-e="rt-5m" data-l="rt" href="#">5 minute window</a>
+                        <a class="tp-opt" data-e="rt-30m" data-l="rt" href="#">30 minute window</a>
+                        <a class="tp-opt" data-e="rt-1h" data-l="rt" href="#">1 hour window</a>
+                      </div>
+                      <!-- Accordion: Date Range -->
+                      <div class="tp-acc-head" data-sec="daterange" style="padding:9px 14px;font-size:13px;color:#5ba1cf;cursor:pointer;border-bottom:1px solid #eee;font-weight:500;">
+                        <span class="tp-arrow" style="display:inline-block;font-size:10px;margin-right:5px;">&#9656;</span>Date Range
+                      </div>
+                      <div class="tp-acc-body" data-sec="daterange" style="display:none;padding:12px 14px;">
+                        <div style="display:flex;gap:10px;margin-bottom:10px;">
+                          <div style="flex:1;"><label style="font-size:12px;font-weight:600;">Between</label><input type="date" id="tp-date-from" style="width:100%;padding:5px;border:1px solid #ccc;border-radius:3px;font-size:13px;margin-top:3px;"/></div>
+                          <div style="flex:1;"><label style="font-size:12px;font-weight:600;">And</label><input type="date" id="tp-date-to" style="width:100%;padding:5px;border:1px solid #ccc;border-radius:3px;font-size:13px;margin-top:3px;"/></div>
+                        </div>
+                        <div style="text-align:right;"><button type="button" id="tp-date-apply" class="btn btn-primary btn-sm">Apply</button></div>
+                      </div>
+                      <!-- Accordion: Advanced -->
+                      <div class="tp-acc-head" data-sec="advanced" style="padding:9px 14px;font-size:13px;color:#5ba1cf;cursor:pointer;font-weight:500;">
+                        <span class="tp-arrow" style="display:inline-block;font-size:10px;margin-right:5px;">&#9656;</span>Advanced
+                      </div>
+                      <div class="tp-acc-body" data-sec="advanced" style="display:none;padding:12px 14px;">
+                        <div style="margin-bottom:8px;"><label style="font-size:12px;font-weight:600;">Earliest</label><input type="text" id="tp-adv-e" style="width:100%;padding:5px;border:1px solid #ccc;border-radius:3px;font-size:13px;margin-top:3px;" placeholder="-15m"/></div>
+                        <div style="margin-bottom:10px;"><label style="font-size:12px;font-weight:600;">Latest</label><input type="text" id="tp-adv-l" style="width:100%;padding:5px;border:1px solid #ccc;border-radius:3px;font-size:13px;margin-top:3px;" placeholder="now"/></div>
+                        <div style="text-align:right;"><button type="button" id="tp-adv-apply" class="btn btn-primary btn-sm">Apply</button></div>
+                      </div>
+                    </div>
+                  </div>
+                  <input type="hidden" id="fld_dur_e" value="-15m"/>
+                  <input type="hidden" id="fld_dur_l" value="now"/>
                 </div>
                 <div style="flex:1;">
                   <label class="form-label">Frequency</label>
@@ -208,6 +283,15 @@
               <div style="margin-bottom:12px;">
                 <label class="form-label">Threshold</label>
                 <input type="number" id="fld_threshold" value="0" min="0" class="form-input"/>
+              </div>
+              <div style="margin-bottom:12px;">
+                <label class="form-label">Trigger</label>
+                <div id="trigger-toggle" style="display:flex;border:1px solid #ccc;border-radius:4px;overflow:hidden;">
+                  <button type="button" class="trigger-btn active" data-value="once" style="flex:1;padding:8px 12px;border:none;cursor:pointer;font-size:13px;background:#1976d2;color:white;text-align:center;">Once</button>
+                  <button type="button" class="trigger-btn" data-value="for_each_result" style="flex:1;padding:8px 12px;border:none;border-left:1px solid #ccc;cursor:pointer;font-size:13px;background:#f5f5f5;color:#333;text-align:center;">For each result</button>
+                </div>
+                <input type="hidden" id="fld_trigger" value="once"/>
+                <span style="color:#666;font-size:11px;margin-top:4px;display:block;">Once = trigger once when threshold is met. For each result = trigger for every row returned.</span>
               </div>
               <div style="background:#f5f5f5;padding:10px;border-radius:4px;">
                 <label style="font-weight:bold;cursor:pointer;">
@@ -245,7 +329,7 @@
     </panel>
   </row>
   
-  <row>
+  <row id="preview_row">
     <panel>
       <title>Preview Results</title>
       <html>
@@ -263,7 +347,7 @@
     </panel>
   </row>
   
-  <row>
+  <row id="summary_row">
     <panel>
       <title>Summary</title>
       <html>
@@ -277,33 +361,13 @@
             <tr><td style="font-weight:bold;">Duration:</td><td id="sum-duration">-</td></tr>
             <tr><td style="font-weight:bold;">Frequency:</td><td id="sum-frequency">-</td></tr>
             <tr><td style="font-weight:bold;">Threshold:</td><td id="sum-threshold">-</td></tr>
+            <tr><td style="font-weight:bold;">Trigger:</td><td id="sum-trigger">Once</td></tr>
             <tr><td style="font-weight:bold;">Throttle:</td><td id="sum-suppression">-</td></tr>
             <tr><td style="font-weight:bold;">Query:</td><td id="sum-query" style="max-width:600px;word-wrap:break-word;font-family:monospace;font-size:11px;">-</td></tr>
           </tbody>
         </table>
         <button class="btn btn-warning" id="btn-ack" disabled="disabled">Acknowledge Configuration</button>
         <span id="ack-status" style="margin-left:10px;"></span>
-      </html>
-    </panel>
-  </row>
-  
-  <row>
-    <panel>
-      <title>Existing Alerts</title>
-      <html>
-        <button class="btn btn-default" id="btn-load-alerts">Load Alerts</button>
-        <input type="text" id="alert-filter" placeholder="Filter..." style="margin-left:10px;padding:6px;"/>
-        <div id="alerts-list" style="margin-top:10px;">Click Load Alerts</div>
-      </html>
-    </panel>
-  </row>
-  
-  <row>
-    <panel>
-      <title>Activity Log</title>
-      <html>
-        <button class="btn btn-default btn-sm" id="btn-clear-log">Clear</button>
-        <div id="log" style="height:150px;overflow:auto;background:#fafafa;padding:10px;margin-top:10px;font-family:monospace;font-size:12px;">[Ready]</div>
       </html>
     </panel>
   </row>
