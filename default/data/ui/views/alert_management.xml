@@ -49,19 +49,19 @@
               <option value="enabled">Enabled</option>
               <option value="disabled">Disabled</option>
             </select>
-            <button class="btn btn-default" id="btn-refresh">
-              <i class="icon-refresh"></i> Refresh
+            <button class="btn btn-default btn-sm" id="btn-refresh" title="Refresh">
+              ↻ Refresh
             </button>
           </div>
           <div class="toolbar-right">
-            <button class="btn btn-success" id="btn-bulk-enable" disabled="disabled">
-              <i class="icon-check"></i> Enable Selected
+            <button class="btn btn-success btn-sm" id="btn-bulk-enable" disabled="disabled">
+              ✓ Enable
             </button>
-            <button class="btn btn-warning" id="btn-bulk-disable" disabled="disabled">
-              <i class="icon-minus"></i> Disable Selected
+            <button class="btn btn-warning btn-sm" id="btn-bulk-disable" disabled="disabled">
+              — Disable
             </button>
-            <button class="btn btn-danger" id="btn-bulk-delete" disabled="disabled">
-              <i class="icon-trash"></i> Delete Selected
+            <button class="btn btn-danger btn-sm" id="btn-bulk-delete" disabled="disabled">
+              ✕ Delete
             </button>
           </div>
         </div>
