@@ -103,18 +103,27 @@
     background-color: #fff;
     background-image: none;
     box-sizing: border-box;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
+/* Only remove appearance for text inputs and textareas, not selects */
+input.form-input,
+textarea.form-input {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
 select.form-input {
-    -webkit-appearance: menulist;
-    -moz-appearance: menulist;
-    appearance: menulist;
+    -webkit-appearance: menulist !important;
+    -moz-appearance: menulist !important;
+    appearance: menulist !important;
     cursor: pointer;
     padding-right: 30px;
+    background-color: #fff !important;
+    color: #333 !important;
+    height: auto !important;
+    min-height: 38px;
 }
 
 textarea.form-input {
@@ -261,4 +270,53 @@ textarea.form-input {
     font-size: 12px;
     border-radius: 4px;
     padding: 15px;
+}
+
+/* Force Splunk dashboard to not override select element styling */
+.dashboard-body select.form-input,
+.panel-body select.form-input,
+.html select.form-input {
+    -webkit-appearance: menulist !important;
+    -moz-appearance: menulist !important;
+    appearance: menulist !important;
+    background-color: #fff !important;
+    color: #333 !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+/* Ensure select option text is visible */
+.dashboard-body select.form-input option,
+.panel-body select.form-input option,
+select.form-input option {
+    color: #333 !important;
+    background-color: #fff !important;
+    padding: 4px 8px !important;
+}
+
+/* Ensure inline selects (suppression unit, relative time unit) also display properly */
+.dashboard-body select,
+.panel-body select,
+.html select {
+    color: #333 !important;
+    background-color: #fff !important;
+}
+
+/* Fix for Splunk overriding select height/visibility */
+#fld_ticket,
+#fld_priority,
+#fld_frequency,
+#fld_suppression_unit,
+#tp-rel-unit {
+    -webkit-appearance: menulist !important;
+    -moz-appearance: menulist !important;
+    appearance: menulist !important;
+    background-color: #fff !important;
+    color: #333 !important;
+    min-height: 38px !important;
+    height: auto !important;
+    display: block !important;
+    opacity: 1 !important;
 }
