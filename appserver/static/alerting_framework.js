@@ -146,11 +146,16 @@ require([
         var units = {m:'minutes',h:'hours',d:'days',w:'weeks',mon:'months'};
         setDuration(earliest, lat, 'Last ' + num + ' ' + (units[unit]||unit));
     });
-    // Date Range Apply
+    // Date Range Apply (with time)
     $(document).on('click', '#tp-date-apply', function() {
         var from = $('#tp-date-from').val(), to = $('#tp-date-to').val();
+        var timeFrom = $('#tp-time-from').val() || '00:00';
+        var timeTo = $('#tp-time-to').val() || '23:59';
         if (!from) return;
-        setDuration(from + 'T00:00:00', to ? to + 'T23:59:59' : 'now', from + ' to ' + (to || 'now'));
+        var earliestStr = from + 'T' + timeFrom + ':00';
+        var latestStr = to ? to + 'T' + timeTo + ':59' : 'now';
+        var label = from + ' ' + timeFrom + ' to ' + (to ? to + ' ' + timeTo : 'now');
+        setDuration(earliestStr, latestStr, label);
     });
     // Advanced Apply
     $(document).on('click', '#tp-adv-apply', function() {
