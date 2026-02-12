@@ -78,6 +78,70 @@ require([
     var isAcknowledged = false, macrosList = [], templatesList = [];
     var editRestPath = ''; // Stores exact REST path from entry.id when editing
 
+    // ---- LOOKUP LOADERS ----
+    function loadLookupDropdown(lookupName, valueField, labelField, selectId, defaultOption) {
+        var s = new SearchManager({
+            id: 'lkp_' + lookupName + '_' + Date.now(),
+            search: '| inputlookup ' + lookupName + '.csv | dedup ' + valueField + ' | sort ' + valueField,
+            earliest_time: '-1m', latest_time: 'now'
+        });
+        s.on('search:done', function() {
+            var r = s.data('results');
+            if (r) r.on('data', function() {
+                var rows = r.data().rows || [], fl = r.data().fields || [];
+                var vi = fl.indexOf(valueField), li = fl.indexOf(labelField || valueField);
+                var $sel = $('#' + selectId);
+                // Keep the first default option
+                var firstOpt = $sel.find('option:first').clone();
+                $sel.empty().append(firstOpt);
+                rows.forEach(function(row) {
+                    var val = row[vi] || '', lbl = row[li] || val;
+                    var desc = labelField ? ' — ' + lbl : '';
+                    $sel.append('<option value="' + val + '">' + val + (desc ? desc : '') + '</option>');
+                });
+                // Add "New Event Class" option for event class dropdown
+                if (selectId === 'fld_eventclass') {
+                    $sel.append('<option value="__new__">+ New Event Class...</option>');
+                }
+                if (defaultOption) $sel.val(defaultOption);
+                console.log('[AF] Loaded lookup ' + lookupName + ' → #' + selectId + ' (' + rows.length + ' items)');
+            });
+        });
+        s.on('search:error', function() {
+            console.error('[AF] Failed to load lookup: ' + lookupName);
+        });
+        s.startSearch();
+    }
+
+    function loadAllLookups() {
+        loadLookupDropdown('application_names', 'app_name', 'description', 'fld_app_name');
+        loadLookupDropdown('event_classes', 'event_class', 'description', 'fld_eventclass');
+        loadLookupDropdown('assignment_groups', 'assignment_group', 'description', 'fld_assignment');
+        loadLookupDropdown('org_codes', 'org_code', 'description', 'fld_orgcode');
+    }
+
+    // ---- NEW EVENT CLASS HANDLER ----
+    $(document).on('change', '#fld_eventclass', function() {
+        if ($(this).val() === '__new__') {
+            $('#fld_eventclass_custom').show().focus().val('');
+        } else {
+            $('#fld_eventclass_custom').hide().val('');
+        }
+        resetAcknowledge();
+        updateSummary();
+    });
+    $(document).on('input', '#fld_eventclass_custom', function() {
+        resetAcknowledge();
+        updateSummary();
+    });
+
+    // Helper: get resolved event class value
+    function getEventClassValue() {
+        var v = $('#fld_eventclass').val();
+        if (v === '__new__') return $.trim($('#fld_eventclass_custom').val());
+        return v || '';
+    }
+
     // ---- URL PARAMS ----
     function getUrlParam(name) {
         var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
@@ -172,7 +236,7 @@ require([
         parts.push('ticket_creation="' + $('#fld_ticket').val() + '"');
         parts.push('priority="' + ($('#fld_priority').val()||'P3') + '"');
         if ($('#fld_ticket').val()==='yes') {
-            parts.push('event_class="' + $.trim($('#fld_eventclass').val()).replace(/"/g,'\\"') + '"');
+            parts.push('event_class="' + getEventClassValue().replace(/"/g,'\\"') + '"');
             parts.push('assignment_group="' + $.trim($('#fld_assignment').val()).replace(/"/g,'\\"') + '"');
             parts.push('org_code="' + $.trim($('#fld_orgcode').val()).replace(/"/g,'\\"') + '"');
         }
@@ -192,7 +256,7 @@ require([
         hideAllErrors(); var errs = [], tk = $('#fld_ticket').val()==='yes';
         if (!$.trim($('#fld_alert_name').val())) { showErr('alert_name','Required'); errs.push('Alert Name'); }
         if (!$.trim($('#fld_app_name').val())) { showErr('app_name','Required'); errs.push('App Name'); }
-        if (tk && !$.trim($('#fld_eventclass').val())) { showErr('eventclass','Required'); errs.push('Event Class'); }
+        if (tk && !getEventClassValue()) { showErr('eventclass','Required'); errs.push('Event Class'); }
         if (tk && !$.trim($('#fld_assignment').val())) { showErr('assignment','Required'); errs.push('Assignment'); }
         if (tk && !$.trim($('#fld_orgcode').val())) { showErr('orgcode','Required'); errs.push('Org Code'); }
         if (!$.trim($('#fld_query').val())) { showErr('query','Required'); errs.push('Query'); }
@@ -340,7 +404,7 @@ require([
         if(trg==='for_each_result'){p['alert_type']='always';}else{p['alert_type']='number of events';p['alert_comparator']='greater than';p['alert_threshold']=thr;}
         if($('#fld_throttle').is(':checked')){var sv=parseInt($('#fld_suppression').val())||0,su=$('#fld_suppression_unit').val();var sec=su==='h'?sv*3600:su==='m'?sv*60:sv;p['alert.suppress']=sec>0?'1':'0';if(sec>0)p['alert.suppress.period']=sec+'s';}else{p['alert.suppress']='0';}
         p['actions']='DFSAlert, logevent';p['action.DFSAlert']='1';p['action.DFSAlert.param.alert_name']=name;p['action.DFSAlert.param.app_name']=appN;p['action.DFSAlert.param.ticket_creation']=tk;p['action.DFSAlert.param.priority']=pri;
-        if(tk==='yes'){p['action.DFSAlert.param.event_class']=$.trim($('#fld_eventclass').val());p['action.DFSAlert.param.assignment_group']=$.trim($('#fld_assignment').val());p['action.DFSAlert.param.org_code']=$.trim($('#fld_orgcode').val());}
+        if(tk==='yes'){p['action.DFSAlert.param.event_class']=getEventClassValue();p['action.DFSAlert.param.assignment_group']=$.trim($('#fld_assignment').val());p['action.DFSAlert.param.org_code']=$.trim($('#fld_orgcode').val());}
         p['action.logevent']='1';p['action.logevent.param.index']='main';p['action.logevent.param.source']='alerting_framework';p['action.logevent.param.sourcetype']='alert:dfs';p['action.logevent.param.event']='Alert triggered: ' + name + ' | app=' + appN + ' | priority=' + pri;
 
         // Determine if this is an update (edit mode) or new create
@@ -401,7 +465,9 @@ require([
 
     // ---- CLEAR ----
     function clearForm() {
-        $('#fld_alert_name,#fld_app_name,#fld_eventclass,#fld_assignment,#fld_orgcode,#fld_query,#fld_email,#fld_subject,#fld_body').val('');
+        $('#fld_alert_name,#fld_query,#fld_email,#fld_subject,#fld_body').val('');
+        $('#fld_app_name,#fld_eventclass,#fld_assignment,#fld_orgcode').val('');
+        $('#fld_eventclass_custom').val('').hide();
         $('#fld_ticket').val('no');$('#fld_priority').val('P3');
         setDuration('-15m','now','Last 15 minutes');
         $('#fld_frequency').val('*/15 * * * *');$('#fld_custom_cron').val('').hide();
@@ -432,7 +498,7 @@ require([
             $('#ack-status').text('');
         }
     }
-    $(document).on('input change','#fld_alert_name,#fld_app_name,#fld_query,#fld_email,#fld_subject,#fld_priority,#fld_threshold,#fld_suppression,#fld_suppression_unit,#fld_ticket,#fld_frequency,#fld_custom_cron,#fld_eventclass,#fld_assignment,#fld_orgcode,#fld_body',function(){ resetAcknowledge(); updateSummary(); });
+    $(document).on('input change','#fld_alert_name,#fld_app_name,#fld_query,#fld_email,#fld_subject,#fld_priority,#fld_threshold,#fld_suppression,#fld_suppression_unit,#fld_ticket,#fld_frequency,#fld_custom_cron,#fld_eventclass,#fld_eventclass_custom,#fld_assignment,#fld_orgcode,#fld_body',function(){ resetAcknowledge(); updateSummary(); });
     $(document).on('click','.trigger-btn',function(){var v=$(this).data('value');$('#fld_trigger').val(v);$('.trigger-btn').css({background:'#f5f5f5',color:'#333'}).removeClass('active');$(this).css({background:'#1976d2',color:'white'}).addClass('active');resetAcknowledge();updateSummary();});
     $(document).on('click','#btn-refresh-macros',loadMacros);
     $(document).on('click','.btn-insert-macro',function(){$('#fld_query').val($('#fld_query').val()+'`'+$(this).data('name')+'`');updateSummary();});
@@ -441,7 +507,20 @@ require([
     $(document).on('click','.btn-apply-template',function(){
         var i=parseInt($(this).data('idx'));if(i<0||i>=templatesList.length)return;var t=templatesList[i];
         $('#fld_alert_name').val(t.name+' - ');$('#fld_ticket').val(t.ticket||'no');
-        if(t.ticket==='yes'){$('#fld_eventclass').val(t.event_class);$('#fld_assignment').val(t.assignment_group);$('#fld_orgcode').val(t.org_code);}
+        if(t.ticket==='yes'){
+            // Set event class - check if value exists in dropdown, otherwise use "New Event Class"
+            var ecExists = $('#fld_eventclass option[value="'+t.event_class+'"]').length > 0;
+            if(ecExists) { $('#fld_eventclass').val(t.event_class); $('#fld_eventclass_custom').hide().val(''); }
+            else if(t.event_class) { $('#fld_eventclass').val('__new__'); $('#fld_eventclass_custom').show().val(t.event_class); }
+            // Set assignment group and org code
+            var agExists = $('#fld_assignment option[value="'+t.assignment_group+'"]').length > 0;
+            if(agExists) $('#fld_assignment').val(t.assignment_group); else if(t.assignment_group) $('#fld_assignment').val(t.assignment_group);
+            var ocExists = $('#fld_orgcode option[value="'+t.org_code+'"]').length > 0;
+            if(ocExists) $('#fld_orgcode').val(t.org_code); else if(t.org_code) $('#fld_orgcode').val(t.org_code);
+        }
+        // Set app name
+        var appExists = $('#fld_app_name option[value="'+t.app_name+'"]').length > 0;
+        if(appExists) $('#fld_app_name').val(t.app_name);
         if(t.query)$('#fld_query').val(t.query);if(t.email)$('#fld_email').val(t.email);
         $('#fld_subject').val((t.subject_prefix||'[ALERT]')+' $name$');if(t.email_body)$('#fld_body').val(t.email_body);$('#fld_priority').val(t.priority||'P3');
         if(t.duration) setDuration(t.duration, 'now', 'Last ' + t.duration.replace('-',''));
@@ -463,7 +542,7 @@ require([
     setTimeout(function(){$('.fieldset,.dashboard-form-globalfieldset').hide();},100);
     // Hide Preview Results and Summary until user clicks Preview
     setTimeout(function(){$('#preview_row').hide();$('#summary_row').hide();},200);
-    loadMacros();loadTemplates();toggleTicketFields();updateSummary();
+    loadMacros();loadTemplates();loadAllLookups();toggleTicketFields();updateSummary();
 
     // ---- EDIT MODE: Load alert from ?alert=<name> URL parameter ----
     function loadAlertForEdit(alertName) {
@@ -523,12 +602,43 @@ require([
 
                 // Fill form fields from eval or content
                 $('#fld_query').val(baseQuery);
-                if (evalFields.app_name) $('#fld_app_name').val(evalFields.app_name);
+                // Set dropdown values - use timeout to ensure lookups are loaded
+                setTimeout(function() {
+                    if (evalFields.app_name) {
+                        var appOpt = $('#fld_app_name option[value="'+evalFields.app_name+'"]');
+                        if (appOpt.length) $('#fld_app_name').val(evalFields.app_name);
+                        else {
+                            // Add as option if not in lookup
+                            $('#fld_app_name').append('<option value="'+evalFields.app_name+'">'+evalFields.app_name+'</option>');
+                            $('#fld_app_name').val(evalFields.app_name);
+                        }
+                    }
+                    if (evalFields.event_class) {
+                        var ecOpt = $('#fld_eventclass option[value="'+evalFields.event_class+'"]');
+                        if (ecOpt.length) { $('#fld_eventclass').val(evalFields.event_class); $('#fld_eventclass_custom').hide().val(''); }
+                        else { $('#fld_eventclass').val('__new__'); $('#fld_eventclass_custom').show().val(evalFields.event_class); }
+                    }
+                    if (evalFields.assignment_group) {
+                        var agOpt = $('#fld_assignment option[value="'+evalFields.assignment_group+'"]');
+                        if (agOpt.length) $('#fld_assignment').val(evalFields.assignment_group);
+                        else {
+                            $('#fld_assignment').append('<option value="'+evalFields.assignment_group+'">'+evalFields.assignment_group+'</option>');
+                            $('#fld_assignment').val(evalFields.assignment_group);
+                        }
+                    }
+                    if (evalFields.org_code) {
+                        var ocOpt = $('#fld_orgcode option[value="'+evalFields.org_code+'"]');
+                        if (ocOpt.length) $('#fld_orgcode').val(evalFields.org_code);
+                        else {
+                            $('#fld_orgcode').append('<option value="'+evalFields.org_code+'">'+evalFields.org_code+'</option>');
+                            $('#fld_orgcode').val(evalFields.org_code);
+                        }
+                    }
+                    toggleTicketFields();
+                    updateSummary();
+                }, 1500);
                 if (evalFields.ticket_creation) $('#fld_ticket').val(evalFields.ticket_creation);
                 if (evalFields.priority) $('#fld_priority').val(evalFields.priority);
-                if (evalFields.event_class) $('#fld_eventclass').val(evalFields.event_class);
-                if (evalFields.assignment_group) $('#fld_assignment').val(evalFields.assignment_group);
-                if (evalFields.org_code) $('#fld_orgcode').val(evalFields.org_code);
                 if (evalFields.email_ids) $('#fld_email').val(evalFields.email_ids);
                 if (evalFields.email_subject) $('#fld_subject').val(evalFields.email_subject);
                 if (evalFields.email_body) $('#fld_body').val(evalFields.email_body);
