@@ -414,7 +414,7 @@ require([
             endpoint = editRestPath;
             verb = 'Updat';
         } else {
-            // CREATE: use current logged-in user to avoid ghost duplicates
+            // CREATE: under current user's namespace, then share at app level
             endpoint = '/servicesNS/' + encodeURIComponent(_currentUser) + '/alerting_framework/saved/searches';
             p.name = name;
             verb = 'Creat';
@@ -423,6 +423,22 @@ require([
         console.log('[AF] #' + thisCall + ' ' + verb + 'ing alert: ' + name + ' endpoint: ' + endpoint);
         $('#btn-submit').prop('disabled', true).css('opacity', '0.5').text(verb + 'ing...');
         $('#form-errors').css({background:'#e3f2fd',color:'#1565c0'}).html(verb + 'ing alert...').show();
+
+        // After create, promote alert to app-level sharing with current user as owner
+        function shareAtAppLevel() {
+            var aclEndpoint = '/servicesNS/' + encodeURIComponent(_currentUser) + '/alerting_framework/saved/searches/' + encodeURIComponent(name) + '/acl';
+            var aclParams = { sharing: 'app', owner: _currentUser, 'perms.read': '*', 'perms.write': 'admin,power' };
+            console.log('[AF] #' + thisCall + ' Setting app-level sharing: ' + aclEndpoint);
+            _rest('POST', aclEndpoint, aclParams, function(aclErr) {
+                if (aclErr) {
+                    console.warn('[AF] #' + thisCall + ' ACL update warning: ' + aclErr.message);
+                    $('#form-errors').css({background:'#fff3e0',color:'#e65100'}).html('&#10003; Alert created but sharing failed: ' + aclErr.message + '. Please share manually via Splunk UI.').show();
+                } else {
+                    console.log('[AF] #' + thisCall + ' App-level sharing set successfully');
+                    $('#form-errors').css({background:'#e8f5e9',color:'#2e7d32'}).html('&#10003; Alert created (app-level): <strong>' + name + '</strong> | Owner: ' + _currentUser).show();
+                }
+            });
+        }
 
         function doSubmit() {
             console.log('[AF] #' + thisCall + ' >>> SENDING POST to: ' + endpoint);
@@ -436,7 +452,12 @@ require([
                     $('#form-errors').css({background:'#ffebee',color:'#c62828'}).html('Error: ' + m).show();
                 } else {
                     console.log('[AF] #' + thisCall + ' SUCCESS');
-                    $('#form-errors').css({background:'#e8f5e9',color:'#2e7d32'}).html('&#10003; Alert ' + verb + 'ed: <strong>' + name + '</strong>').show();
+                    if (!isEdit) {
+                        // After creating, share at app level
+                        shareAtAppLevel();
+                    } else {
+                        $('#form-errors').css({background:'#e8f5e9',color:'#2e7d32'}).html('&#10003; Alert ' + verb + 'ed: <strong>' + name + '</strong>').show();
+                    }
                 }
             });
         }
