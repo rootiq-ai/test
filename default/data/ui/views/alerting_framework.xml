@@ -1,7 +1,6 @@
 <dashboard version="1.1" script="alerting_framework.js" stylesheet="alerting_framework.css" hideFilters="true">
   <label>Alerting Framework</label>
-  <description>Create and manage Splunk alerts - by Kamal Bisht</description>
-  
+  <description>Create and manage Splunk alerts</description>
   <row>
     <panel>
       <html>
@@ -11,7 +10,6 @@
       </html>
     </panel>
   </row>
-  
   <row id="quick_start_content">
     <panel>
       <title>Macros</title>
@@ -65,16 +63,8 @@
       </html>
     </panel>
   </row>
-  
   <row>
     <panel>
-      <html><hr style="margin:20px 0;"/></html>
-    </panel>
-  </row>
-  
-  <row>
-    <panel>
-      <title>Alert Configuration</title>
       <html>
         <div class="alert-form-container">
           
