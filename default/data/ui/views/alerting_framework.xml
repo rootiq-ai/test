@@ -1,6 +1,7 @@
 <dashboard version="1.1" script="alerting_framework.js" stylesheet="alerting_framework.css" hideFilters="true">
   <label>Alerting Framework</label>
-  <description>Create and manage Splunk alerts</description>
+  <description>Create and manage Splunk alerts - by Kamal Bisht</description>
+  
   <row>
     <panel>
       <html>
@@ -10,6 +11,7 @@
       </html>
     </panel>
   </row>
+  
   <row id="quick_start_content">
     <panel>
       <title>Macros</title>
@@ -63,8 +65,16 @@
       </html>
     </panel>
   </row>
+  
   <row>
     <panel>
+      <html><hr style="margin:20px 0;"/></html>
+    </panel>
+  </row>
+  
+  <row>
+    <panel>
+      <title>Alert Configuration</title>
       <html>
         <div class="alert-form-container">
           
@@ -78,7 +88,9 @@
               </div>
               <div style="flex:1;">
                 <label class="form-label">Application Name <span style="color:red;">*</span></label>
-                <input type="text" id="fld_app_name" class="form-input" placeholder="e.g., MyApp"/>
+                <select id="fld_app_name" class="form-input">
+                  <option value="">-- Select Application --</option>
+                </select>
                 <div id="err_app_name" class="form-error"></div>
               </div>
               <div style="flex:1;">
@@ -104,17 +116,24 @@
                 </div>
                 <div style="flex:1;">
                   <label class="form-label">Event Class <span style="color:red;">*</span></label>
-                  <input type="text" id="fld_eventclass" class="form-input" placeholder="e.g., Infrastructure"/>
+                  <select id="fld_eventclass" class="form-input">
+                    <option value="">-- Select Event Class --</option>
+                  </select>
+                  <input type="text" id="fld_eventclass_custom" class="form-input" style="display:none;margin-top:5px;" placeholder="Enter new event class name"/>
                   <div id="err_eventclass" class="form-error"></div>
                 </div>
                 <div style="flex:1;">
                   <label class="form-label">Assignment Group <span style="color:red;">*</span></label>
-                  <input type="text" id="fld_assignment" class="form-input" placeholder="e.g., Platform-Support"/>
+                  <select id="fld_assignment" class="form-input">
+                    <option value="">-- Select Assignment Group --</option>
+                  </select>
                   <div id="err_assignment" class="form-error"></div>
                 </div>
                 <div style="flex:1;">
                   <label class="form-label">Org Code <span style="color:red;">*</span></label>
-                  <input type="text" id="fld_orgcode" class="form-input" placeholder="e.g., ORG001"/>
+                  <select id="fld_orgcode" class="form-input">
+                    <option value="">-- Select Org Code --</option>
+                  </select>
                   <div id="err_orgcode" class="form-error"></div>
                 </div>
               </div>
@@ -233,9 +252,19 @@
                         <span class="tp-arrow" style="display:inline-block;font-size:10px;margin-right:5px;">&#9656;</span>Date Range
                       </div>
                       <div class="tp-acc-body" data-sec="daterange" style="display:none;padding:12px 14px;">
-                        <div style="display:flex;gap:10px;margin-bottom:10px;">
-                          <div style="flex:1;"><label style="font-size:12px;font-weight:600;">Between</label><input type="date" id="tp-date-from" style="width:100%;padding:5px;border:1px solid #ccc;border-radius:3px;font-size:13px;margin-top:3px;"/></div>
-                          <div style="flex:1;"><label style="font-size:12px;font-weight:600;">And</label><input type="date" id="tp-date-to" style="width:100%;padding:5px;border:1px solid #ccc;border-radius:3px;font-size:13px;margin-top:3px;"/></div>
+                        <div style="margin-bottom:10px;">
+                          <label style="font-size:12px;font-weight:600;margin-bottom:4px;display:block;">Between</label>
+                          <div style="display:flex;gap:6px;">
+                            <input type="date" id="tp-date-from" style="flex:1;padding:5px;border:1px solid #ccc;border-radius:3px;font-size:13px;"/>
+                            <input type="time" id="tp-time-from" value="00:00" style="width:110px;padding:5px;border:1px solid #ccc;border-radius:3px;font-size:13px;"/>
+                          </div>
+                        </div>
+                        <div style="margin-bottom:10px;">
+                          <label style="font-size:12px;font-weight:600;margin-bottom:4px;display:block;">And</label>
+                          <div style="display:flex;gap:6px;">
+                            <input type="date" id="tp-date-to" style="flex:1;padding:5px;border:1px solid #ccc;border-radius:3px;font-size:13px;"/>
+                            <input type="time" id="tp-time-to" value="23:59" style="width:110px;padding:5px;border:1px solid #ccc;border-radius:3px;font-size:13px;"/>
+                          </div>
                         </div>
                         <div style="text-align:right;"><button type="button" id="tp-date-apply" class="btn btn-primary btn-sm">Apply</button></div>
                       </div>
