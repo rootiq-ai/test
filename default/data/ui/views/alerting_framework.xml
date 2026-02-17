@@ -72,7 +72,8 @@
           <div class="form-card">
             <div style="display:flex;gap:15px;margin-bottom:15px;">
               <div style="flex:2;">
-                <label class="form-label">Alert Name <span style="color:red;">*</span></label>
+                <label class="form-label">Alert Name <span style="color:red;">*</span>
+                </label>
                 <input type="text" id="fld_alert_name" class="form-input" placeholder="Enter alert name"/>
                 <div id="err_alert_name" class="form-error"></div>
               </div>
