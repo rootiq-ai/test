@@ -108,7 +108,8 @@
                   </select>
                 </div>
                 <div style="flex:1;">
-                  <label class="form-label">Event Class <span style="color:red;">*</span></label>
+                  <label class="form-label">Event Class <span style="color:red;">*</span>
+                  </label>
                   <select id="fld_eventclass" class="form-input">
                     <option value="">-- Select Event Class --</option>
                   </select>
@@ -116,14 +117,16 @@
                   <div id="err_eventclass" class="form-error"></div>
                 </div>
                 <div style="flex:1;">
-                  <label class="form-label">Assignment Group <span style="color:red;">*</span></label>
+                  <label class="form-label">Assignment Group <span style="color:red;">*</span>
+                  </label>
                   <select id="fld_assignment" class="form-input">
                     <option value="">-- Select Assignment Group --</option>
                   </select>
                   <div id="err_assignment" class="form-error"></div>
                 </div>
                 <div style="flex:1;">
-                  <label class="form-label">Org Code <span style="color:red;">*</span></label>
+                  <label class="form-label">Org Code <span style="color:red;">*</span>
+                  </label>
                   <select id="fld_orgcode" class="form-input">
                     <option value="">-- Select Org Code --</option>
                   </select>
@@ -135,7 +138,8 @@
           
           <!-- Card 2: Splunk Query -->
           <div class="form-card">
-            <label class="form-label">Splunk Query <span style="color:red;">*</span></label>
+            <label class="form-label">Splunk Query <span style="color:red;">*</span>
+            </label>
             <textarea id="fld_query" rows="4" class="form-input" style="font-family:monospace;" placeholder="Enter SPL query..."></textarea>
             <div id="err_query" class="form-error"></div>
             <div style="margin-top:8px;">
@@ -151,18 +155,21 @@
             <!-- Left: Email Notification -->
             <div class="form-card" style="flex:1;">
               <div style="margin-bottom:12px;">
-                <label class="form-label">Email IDs <span style="color:red;">*</span></label>
+                <label class="form-label">Email IDs <span style="color:red;">*</span>
+                </label>
                 <input type="text" id="fld_email" class="form-input" placeholder="user@domain.com"/>
                 <div style="font-size:10px;color:#666;margin-top:2px;">Separate multiple with commas</div>
                 <div id="err_email" class="form-error"></div>
               </div>
               <div style="margin-bottom:12px;">
-                <label class="form-label">Email Subject <span style="color:red;">*</span></label>
+                <label class="form-label">Email Subject <span style="color:red;">*</span>
+                </label>
                 <input type="text" id="fld_subject" class="form-input" placeholder="Alert: $name$"/>
                 <div id="err_subject" class="form-error"></div>
               </div>
               <div>
-                <label class="form-label">Email Body <span style="color:red;">*</span></label>
+                <label class="form-label">Email Body <span style="color:red;">*</span>
+                </label>
                 <textarea id="fld_body" rows="3" class="form-input" placeholder="Alert details..."></textarea>
                 <div id="err_body" class="form-error"></div>
               </div>
