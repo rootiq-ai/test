@@ -1,0 +1,16 @@
+event_class,description
+PRODUCTION,Production Environment Events
+APPLICATION,Application Layer Events
+INFRASTRUCTURE,Infrastructure & Platform Events
+SECURITY,Security & Compliance Events
+NETWORK,Network Connectivity Events
+DATABASE,Database & Storage Events
+CAPACITY,Capacity & Resource Events
+PERFORMANCE,Performance & Latency Events
+AUTHENTICATION,Authentication & Access Events
+DEPLOYMENT,Deployment & Release Events
+INTEGRATION,Third-party Integration Events
+MONITORING,General Monitoring Events
+BATCH_PROCESSING,Batch Job & Processing Events
+API,API Endpoint Events
+DATA_QUALITY,Data Quality & Validation Events

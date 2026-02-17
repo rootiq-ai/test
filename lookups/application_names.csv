@@ -1,0 +1,16 @@
+app_name,description
+MyApp,Default Application
+PaymentGateway,Payment Processing Service
+OrderService,Order Management System
+AuthService,Authentication Service
+NotificationService,Email & SMS Notifications
+InventoryService,Inventory Management
+UserPortal,Customer-facing Web Portal
+DataPipeline,ETL & Data Processing
+APIGateway,API Gateway Service
+ReportingEngine,Reporting & Analytics
+FraudDetection,Fraud Detection System
+RiskEngine,Risk Assessment Engine
+ComplianceMonitor,Compliance Monitoring
+CacheService,Caching Layer Service
+SearchService,Search & Indexing Service
