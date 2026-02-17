@@ -78,14 +78,16 @@
                 <div id="err_alert_name" class="form-error"></div>
               </div>
               <div style="flex:1;">
-                <label class="form-label">Application Name <span style="color:red;">*</span></label>
+                <label class="form-label">Application Name <span style="color:red;">*</span>
+                </label>
                 <select id="fld_app_name" class="form-input">
                   <option value="">-- Select Application --</option>
                 </select>
                 <div id="err_app_name" class="form-error"></div>
               </div>
               <div style="flex:1;">
-                <label class="form-label">Ticket Creation <span style="color:red;">*</span></label>
+                <label class="form-label">Ticket Creation <span style="color:red;">*</span>
+                </label>
                 <select id="fld_ticket" class="form-input">
                   <option value="no">No</option>
                   <option value="yes">Yes</option>
