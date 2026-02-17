@@ -400,12 +400,11 @@ require([
         var name=$.trim($('#fld_alert_name').val()), appN=$.trim($('#fld_app_name').val()), tk=$('#fld_ticket').val(), pri=$('#fld_priority').val()||'P3', trg=$('#fld_trigger').val()||'once';
         var cron=$('#fld_frequency').val(), t=getDur(), thr=$('#fld_threshold').val()||'0', fq=buildFullQuery();
         if(cron==='custom'){cron=$.trim($('#fld_custom_cron').val());if(!cron){$('#form-errors').css({background:'#ffebee',color:'#c62828'}).html('Custom cron required').show();_submitting=false;return;}}
-        var p={search:fq,is_scheduled:'1',disabled:'0',cron_schedule:cron,'dispatch.earliest_time':t.earliest,'dispatch.latest_time':t.latest,'alert.track':'1'};
+        var p={search:fq,is_scheduled:'1',disabled:'0',cron_schedule:cron,'dispatch.earliest_time':t.earliest,'dispatch.latest_time':t.latest,'alert.track':'0'};
         if(trg==='for_each_result'){p['alert_type']='always';}else{p['alert_type']='number of events';p['alert_comparator']='greater than';p['alert_threshold']=thr;}
         if($('#fld_throttle').is(':checked')){var sv=parseInt($('#fld_suppression').val())||0,su=$('#fld_suppression_unit').val();var sec=su==='h'?sv*3600:su==='m'?sv*60:sv;p['alert.suppress']=sec>0?'1':'0';if(sec>0)p['alert.suppress.period']=sec+'s';}else{p['alert.suppress']='0';}
-        p['actions']='DFSAlert, logevent';p['action.DFSAlert']='1';p['action.DFSAlert.param.alert_name']=name;p['action.DFSAlert.param.app_name']=appN;p['action.DFSAlert.param.ticket_creation']=tk;p['action.DFSAlert.param.priority']=pri;
-        if(tk==='yes'){p['action.DFSAlert.param.event_class']=getEventClassValue();p['action.DFSAlert.param.assignment_group']=$.trim($('#fld_assignment').val());p['action.DFSAlert.param.org_code']=$.trim($('#fld_orgcode').val());}
-        p['action.logevent']='1';p['action.logevent.param.index']='main';p['action.logevent.param.source']='alerting_framework';p['action.logevent.param.sourcetype']='alert:dfs';p['action.logevent.param.event']='Alert triggered: ' + name + ' | app=' + appN + ' | priority=' + pri;
+        p['actions']='DFS Alert';p['action.DFS Alert']='1';p['action.DFS Alert.param.alert_name']=name;p['action.DFS Alert.param.app_name']=appN;p['action.DFS Alert.param.ticket_creation']=tk;p['action.DFS Alert.param.priority']=pri;
+        if(tk==='yes'){p['action.DFS Alert.param.event_class']=getEventClassValue();p['action.DFS Alert.param.assignment_group']=$.trim($('#fld_assignment').val());p['action.DFS Alert.param.org_code']=$.trim($('#fld_orgcode').val());}
 
         // Determine if this is an update (edit mode) or new create
         var isEdit = !!getUrlParam('alert');
@@ -415,7 +414,7 @@ require([
             endpoint = editRestPath;
             verb = 'Updat';
         } else {
-            // CREATE: use current logged-in user to avoid ghost duplicates
+            // CREATE: under current user's namespace, then share at app level
             endpoint = '/servicesNS/' + encodeURIComponent(_currentUser) + '/alerting_framework/saved/searches';
             p.name = name;
             verb = 'Creat';
@@ -424,6 +423,22 @@ require([
         console.log('[AF] #' + thisCall + ' ' + verb + 'ing alert: ' + name + ' endpoint: ' + endpoint);
         $('#btn-submit').prop('disabled', true).css('opacity', '0.5').text(verb + 'ing...');
         $('#form-errors').css({background:'#e3f2fd',color:'#1565c0'}).html(verb + 'ing alert...').show();
+
+        // After create, promote alert to app-level sharing with current user as owner
+        function shareAtAppLevel() {
+            var aclEndpoint = '/servicesNS/' + encodeURIComponent(_currentUser) + '/alerting_framework/saved/searches/' + encodeURIComponent(name) + '/acl';
+            var aclParams = { sharing: 'app', owner: _currentUser, 'perms.read': '*', 'perms.write': 'admin,power' };
+            console.log('[AF] #' + thisCall + ' Setting app-level sharing: ' + aclEndpoint);
+            _rest('POST', aclEndpoint, aclParams, function(aclErr) {
+                if (aclErr) {
+                    console.warn('[AF] #' + thisCall + ' ACL update warning: ' + aclErr.message);
+                    $('#form-errors').css({background:'#fff3e0',color:'#e65100'}).html('&#10003; Alert created but sharing failed: ' + aclErr.message + '. Please share manually via Splunk UI.').show();
+                } else {
+                    console.log('[AF] #' + thisCall + ' App-level sharing set successfully');
+                    $('#form-errors').css({background:'#e8f5e9',color:'#2e7d32'}).html('&#10003; Alert created (app-level): <strong>' + name + '</strong> | Owner: ' + _currentUser).show();
+                }
+            });
+        }
 
         function doSubmit() {
             console.log('[AF] #' + thisCall + ' >>> SENDING POST to: ' + endpoint);
@@ -437,7 +452,12 @@ require([
                     $('#form-errors').css({background:'#ffebee',color:'#c62828'}).html('Error: ' + m).show();
                 } else {
                     console.log('[AF] #' + thisCall + ' SUCCESS');
-                    $('#form-errors').css({background:'#e8f5e9',color:'#2e7d32'}).html('&#10003; Alert ' + verb + 'ed: <strong>' + name + '</strong>').show();
+                    if (!isEdit) {
+                        // After creating, share at app level
+                        shareAtAppLevel();
+                    } else {
+                        $('#form-errors').css({background:'#e8f5e9',color:'#2e7d32'}).html('&#10003; Alert ' + verb + 'ed: <strong>' + name + '</strong>').show();
+                    }
                 }
             });
         }
