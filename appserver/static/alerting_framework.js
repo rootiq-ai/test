@@ -12,9 +12,6 @@ require([
 
     console.log('[AF] ======= Alerting Framework v4 loaded =======');
 
-    // ============================================================
-    // BULLETPROOF REST FOR SPLUNK 9.x
-    // ============================================================
     var _locale = window.location.pathname.split('/')[1] || 'en-US';
 
     // Get current logged-in Splunk username
