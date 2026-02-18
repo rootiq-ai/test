@@ -1,0 +1,16 @@
+org_code,description
+PROD-001,Production Operations
+APP-001,Application Development
+SEC-001,Security Operations
+NET-001,Network Operations
+DBA-001,Database Administration
+INFRA-001,Infrastructure Services
+PLAT-001,Platform Engineering
+DEVOPS-001,DevOps & SRE
+NOC-001,Network Operations Center
+SOC-001,Security Operations Center
+DATA-001,Data Engineering
+CLOUD-001,Cloud Operations
+QA-001,Quality Assurance
+REL-001,Release Management
+SUPPORT-001,Customer Support

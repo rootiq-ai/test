@@ -1,0 +1,16 @@
+assignment_group,description
+Prod-Support-Team,Production Support Team
+App-Support-Team,Application Support Team
+Security-Team,Security Operations Team
+Network-Team,Network Operations Team
+DBA-Team,Database Administration Team
+Infra-Team,Infrastructure Team
+Platform-Support,Platform Engineering Team
+DevOps-Team,DevOps & SRE Team
+NOC-Team,Network Operations Center
+SOC-Team,Security Operations Center
+Release-Team,Release Management Team
+QA-Team,Quality Assurance Team
+Data-Engineering,Data Engineering Team
+Cloud-Ops,Cloud Operations Team
+L1-Support,Level 1 Help Desk
