@@ -55,7 +55,15 @@ require([
         if (method === 'GET') {
             ajaxOpts.data = params || {};
         } else if (method === 'POST') {
-            ajaxOpts.data = $.param(params || {});
+            // Manually build form body to preserve exact key names ($.param encodes spaces in keys as +, which Splunk may not decode)
+            var parts = [];
+            var p = params || {};
+            for (var key in p) {
+                if (p.hasOwnProperty(key)) {
+                    parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(p[key]));
+                }
+            }
+            ajaxOpts.data = parts.join('&');
             ajaxOpts.contentType = 'application/x-www-form-urlencoded; charset=UTF-8';
         } else if (method === 'DELETE') {
             if (url.indexOf('?') === -1) ajaxOpts.url += '?output_mode=json';
@@ -403,8 +411,8 @@ require([
         var p={search:fq,is_scheduled:'1',disabled:'0',cron_schedule:cron,'dispatch.earliest_time':t.earliest,'dispatch.latest_time':t.latest,'alert.track':'0'};
         if(trg==='for_each_result'){p['alert_type']='always';}else{p['alert_type']='number of events';p['alert_comparator']='greater than';p['alert_threshold']=thr;}
         if($('#fld_throttle').is(':checked')){var sv=parseInt($('#fld_suppression').val())||0,su=$('#fld_suppression_unit').val();var sec=su==='h'?sv*3600:su==='m'?sv*60:sv;p['alert.suppress']=sec>0?'1':'0';if(sec>0)p['alert.suppress.period']=sec+'s';}else{p['alert.suppress']='0';}
-        p['actions']='DFS Alert';p['action.DFS Alert']='1';p['action.DFS Alert.param.alert_name']=name;p['action.DFS Alert.param.app_name']=appN;p['action.DFS Alert.param.ticket_creation']=tk;p['action.DFS Alert.param.priority']=pri;
-        if(tk==='yes'){p['action.DFS Alert.param.event_class']=getEventClassValue();p['action.DFS Alert.param.assignment_group']=$.trim($('#fld_assignment').val());p['action.DFS Alert.param.org_code']=$.trim($('#fld_orgcode').val());}
+        p['actions']='DFSAlert';p['action.DFSAlert']='1';p['action.DFSAlert.param.alert_name']=name;p['action.DFSAlert.param.app_name']=appN;p['action.DFSAlert.param.ticket_creation']=tk;p['action.DFSAlert.param.priority']=pri;
+        if(tk==='yes'){p['action.DFSAlert.param.event_class']=getEventClassValue();p['action.DFSAlert.param.assignment_group']=$.trim($('#fld_assignment').val());p['action.DFSAlert.param.org_code']=$.trim($('#fld_orgcode').val());}
 
         // Determine if this is an update (edit mode) or new create
         var isEdit = !!getUrlParam('alert');
