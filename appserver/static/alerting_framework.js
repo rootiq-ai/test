@@ -55,8 +55,7 @@ require([
         if (method === 'GET') {
             ajaxOpts.data = params || {};
         } else if (method === 'POST') {
-            ajaxOpts.data = $.param(params || {});
-            ajaxOpts.contentType = 'application/x-www-form-urlencoded; charset=UTF-8';
+            ajaxOpts.data = params || {};
         } else if (method === 'DELETE') {
             if (url.indexOf('?') === -1) ajaxOpts.url += '?output_mode=json';
             else ajaxOpts.url += '&output_mode=json';
@@ -231,16 +230,6 @@ require([
     // ---- BUILD FULL QUERY ----
     function buildFullQuery() {
         var q = $.trim($('#fld_query').val()), parts = [];
-        parts.push('alert_name="' + $.trim($('#fld_alert_name').val()).replace(/"/g,'\\"') + '"');
-        parts.push('app_name="' + $.trim($('#fld_app_name').val()).replace(/"/g,'\\"') + '"');
-        parts.push('ticket_creation="' + $('#fld_ticket').val() + '"');
-        parts.push('priority="' + ($('#fld_priority').val()||'P3') + '"');
-        if ($('#fld_ticket').val()==='yes') {
-            parts.push('event_class="' + getEventClassValue().replace(/"/g,'\\"') + '"');
-            parts.push('assignment_group="' + $.trim($('#fld_assignment').val()).replace(/"/g,'\\"') + '"');
-            parts.push('org_code="' + $.trim($('#fld_orgcode').val()).replace(/"/g,'\\"') + '"');
-        }
-        parts.push('email_ids="' + $.trim($('#fld_email').val()).replace(/"/g,'\\"') + '"');
         parts.push('email_subject="' + $.trim($('#fld_subject').val()).replace(/"/g,'\\"') + '"');
         parts.push('email_body="' + $.trim($('#fld_body').val()).replace(/"/g,'\\"') + '"');
         return q + ' | eval ' + parts.join(', ');
@@ -276,12 +265,49 @@ require([
     }
 
     // ---- SUMMARY ----
+    // Inject missing summary rows once
+    var _summaryInjected = false;
+    function injectSummaryRows() {
+        if (_summaryInjected) return;
+        _summaryInjected = true;
+        var rowStyle = 'font-weight:600; color:#555; padding:6px 0; width:120px;';
+        // Find the Ticket row and add after it
+        var $ticketRow = $('#sum-ticket').closest('tr');
+        if ($ticketRow.length) {
+            var rows = '';
+            rows += '<tr id="sum-eventclass-row" style="display:none;"><td style="' + rowStyle + '">Event Class:</td><td id="sum-eventclass">-</td></tr>';
+            rows += '<tr id="sum-assignment-row" style="display:none;"><td style="' + rowStyle + '">Assignment Group:</td><td id="sum-assignment">-</td></tr>';
+            rows += '<tr id="sum-orgcode-row" style="display:none;"><td style="' + rowStyle + '">Org Code:</td><td id="sum-orgcode">-</td></tr>';
+            $ticketRow.after(rows);
+        }
+        // Hide Query row and add id
+        $('#sum-query').closest('tr').attr('id', 'sum-query-row').hide();
+        // Add Email Subject and Email Body rows after Email row
+        var $emailRow = $('#sum-email').closest('tr');
+        if ($emailRow.length) {
+            var eRows = '';
+            eRows += '<tr id="sum-subject-row"><td style="' + rowStyle + '">Email Subject:</td><td id="sum-subject">-</td></tr>';
+            eRows += '<tr id="sum-body-row"><td style="' + rowStyle + '">Email Body:</td><td id="sum-body">-</td></tr>';
+            $emailRow.after(eRows);
+        }
+    }
+
     function updateSummary() {
+        injectSummaryRows();
         $('#sum-name').text($('#fld_alert_name').val()||'-');
         $('#sum-app').text($('#fld_app_name').val()||'-');
         $('#sum-ticket').text($('#fld_ticket').val()==='yes'?'Yes':'No');
         $('#sum-email').text($('#fld_email').val()||'-');
+        $('#sum-subject').text($('#fld_subject').val()||'-');
+        $('#sum-body').text($('#fld_body').val()||'-');
         $('#sum-priority').text($('#fld_priority').val()||'-');
+        if ($('#fld_ticket').val()==='yes') {
+            $('#sum-eventclass-row').show(); $('#sum-eventclass').text(getEventClassValue()||'-');
+            $('#sum-assignment-row').show(); $('#sum-assignment').text($('#fld_assignment').val()||'-');
+            $('#sum-orgcode-row').show(); $('#sum-orgcode').text($('#fld_orgcode').val()||'-');
+        } else {
+            $('#sum-eventclass-row,#sum-assignment-row,#sum-orgcode-row').hide();
+        }
         $('#sum-duration').text(getDurLabel());
         var fv=$('#fld_frequency').val(), ft=$('#fld_frequency option:selected').text();
         if(fv==='custom'){var c=$.trim($('#fld_custom_cron').val()); ft=c?'Custom: '+c:'Custom';}
@@ -290,7 +316,7 @@ require([
         $('#sum-trigger').text($('#fld_trigger').val()==='for_each_result'?'For each result':'Once');
         var st='None'; if($('#fld_throttle').is(':checked')){ var sv=parseInt($('#fld_suppression').val())||0, su=$('#fld_suppression_unit').val(); st=sv+' '+(su==='s'?'sec':su==='m'?'min':'hr')+'(s)'; }
         $('#sum-suppression').text(st);
-        $('#sum-query').text($.trim($('#fld_query').val())?buildFullQuery():'-');
+        $('#sum-query-row').hide();
         $('#btn-ack').prop('disabled',!($.trim($('#fld_alert_name').val())&&$.trim($('#fld_query').val())));
     }
 
@@ -385,102 +411,293 @@ require([
         sm.startSearch();
     }
 
-    // ---- CREATE ALERT ----
+    // ---- CREATE ALERT (with Approval Workflow) ----
     var _submitting = false;
-    var _submitCount = 0;
     function createAlert() {
-        _submitCount++;
-        var thisCall = _submitCount;
-        console.log('[AF] *** createAlert() called #' + thisCall + ' ***');
-        console.trace('[AF] Call stack for createAlert #' + thisCall);
-
-        if (_submitting) { console.log('[AF] #' + thisCall + ' BLOCKED: submit already in progress'); return; }
+        if (_submitting) return;
         _submitting = true;
 
-        var name=$.trim($('#fld_alert_name').val()), appN=$.trim($('#fld_app_name').val()), tk=$('#fld_ticket').val(), pri=$('#fld_priority').val()||'P3', trg=$('#fld_trigger').val()||'once';
-        var cron=$('#fld_frequency').val(), t=getDur(), thr=$('#fld_threshold').val()||'0', fq=buildFullQuery();
-        if(cron==='custom'){cron=$.trim($('#fld_custom_cron').val());if(!cron){$('#form-errors').css({background:'#ffebee',color:'#c62828'}).html('Custom cron required').show();_submitting=false;return;}}
-        var p={search:fq,is_scheduled:'1',disabled:'0',cron_schedule:cron,'dispatch.earliest_time':t.earliest,'dispatch.latest_time':t.latest,'alert.track':'0'};
-        if(trg==='for_each_result'){p['alert_type']='always';}else{p['alert_type']='number of events';p['alert_comparator']='greater than';p['alert_threshold']=thr;}
-        if($('#fld_throttle').is(':checked')){var sv=parseInt($('#fld_suppression').val())||0,su=$('#fld_suppression_unit').val();var sec=su==='h'?sv*3600:su==='m'?sv*60:sv;p['alert.suppress']=sec>0?'1':'0';if(sec>0)p['alert.suppress.period']=sec+'s';}else{p['alert.suppress']='0';}
-        p['actions']='DFS Alert';p['action.DFS Alert']='1';p['action.DFS Alert.param.alert_name']=name;p['action.DFS Alert.param.app_name']=appN;p['action.DFS Alert.param.ticket_creation']=tk;p['action.DFS Alert.param.priority']=pri;
-        if(tk==='yes'){p['action.DFS Alert.param.event_class']=getEventClassValue();p['action.DFS Alert.param.assignment_group']=$.trim($('#fld_assignment').val());p['action.DFS Alert.param.org_code']=$.trim($('#fld_orgcode').val());}
+        var name = $.trim($('#fld_alert_name').val());
+        var appName = $.trim($('#fld_app_name').val());
+        var ticketCreation = $('#fld_ticket').val();
+        var priority = $('#fld_priority').val() || 'P3';
+        var eventClass = getEventClassValue();
+        var assignmentGroup = $.trim($('#fld_assignment').val());
+        var orgCode = $.trim($('#fld_orgcode').val());
+        var cron = $('#fld_frequency').val();
+        var t = getDur();
+        var threshold = $('#fld_threshold').val() || '0';
+        var trg = $('#fld_trigger').val() || 'once';
+        var fullQuery = buildFullQuery();
+        var baseQuery = $.trim($('#fld_query').val());
+        var emailIds = $.trim($('#fld_email').val());
+        var emailSubject = $.trim($('#fld_subject').val());
+        var emailBody = $.trim($('#fld_body').val());
 
-        // Determine if this is an update (edit mode) or new create
-        var isEdit = !!getUrlParam('alert');
-        var endpoint, verb;
-        if (isEdit && editRestPath) {
-            // UPDATE: use the exact REST path from Splunk's entry.id
-            endpoint = editRestPath;
-            verb = 'Updat';
-        } else {
-            // CREATE: under current user's namespace, then share at app level
-            endpoint = '/servicesNS/' + encodeURIComponent(_currentUser) + '/alerting_framework/saved/searches';
-            p.name = name;
-            verb = 'Creat';
+        if (cron === 'custom') {
+            cron = $.trim($('#fld_custom_cron').val());
+            if (!cron) { $('#form-errors').css({background:'#ffebee',color:'#c62828'}).html('Custom cron required').show(); _submitting = false; return; }
         }
 
-        console.log('[AF] #' + thisCall + ' ' + verb + 'ing alert: ' + name + ' endpoint: ' + endpoint);
+        var isEdit = !!getUrlParam('alert');
+        var verb = isEdit ? 'Updat' : 'Creat';
+
+        console.log('[AF] ' + verb + 'ing alert: ' + name);
         $('#btn-submit').prop('disabled', true).css('opacity', '0.5').text(verb + 'ing...');
         $('#form-errors').css({background:'#e3f2fd',color:'#1565c0'}).html(verb + 'ing alert...').show();
 
-        // After create, promote alert to app-level sharing with current user as owner
-        function shareAtAppLevel() {
-            var aclEndpoint = '/servicesNS/' + encodeURIComponent(_currentUser) + '/alerting_framework/saved/searches/' + encodeURIComponent(name) + '/acl';
-            var aclParams = { sharing: 'app', owner: _currentUser, 'perms.read': '*', 'perms.write': 'admin,power' };
-            console.log('[AF] #' + thisCall + ' Setting app-level sharing: ' + aclEndpoint);
-            _rest('POST', aclEndpoint, aclParams, function(aclErr) {
-                if (aclErr) {
-                    console.warn('[AF] #' + thisCall + ' ACL update warning: ' + aclErr.message);
-                    $('#form-errors').css({background:'#fff3e0',color:'#e65100'}).html('&#10003; Alert created but sharing failed: ' + aclErr.message + '. Please share manually via Splunk UI.').show();
-                } else {
-                    console.log('[AF] #' + thisCall + ' App-level sharing set successfully');
-                    $('#form-errors').css({background:'#e8f5e9',color:'#2e7d32'}).html('&#10003; Alert created (app-level): <strong>' + name + '</strong> | Owner: ' + _currentUser).show();
-                }
-            });
+        var params = {
+            search: fullQuery,
+            is_scheduled: '1',
+            cron_schedule: cron,
+            'dispatch.earliest_time': t.earliest,
+            'dispatch.latest_time': t.latest,
+            'alert.track': '0',
+            alert_type: 'number of events',
+            alert_comparator: 'greater than',
+            alert_threshold: threshold,
+            output_mode: 'json'
+        };
+
+        if (trg === 'for_each_result') {
+            params['alert_type'] = 'always';
         }
 
-        function doSubmit() {
-            console.log('[AF] #' + thisCall + ' >>> SENDING POST to: ' + endpoint);
-            _rest('POST', endpoint, p, function(err) {
+        // Throttle
+        var throttleEnabled = 'no';
+        var suppressionPeriod = '';
+        if ($('#fld_throttle').is(':checked')) {
+            var sv = parseInt($('#fld_suppression').val()) || 0, su = $('#fld_suppression_unit').val();
+            var sec = su === 'h' ? sv*3600 : su === 'm' ? sv*60 : sv;
+            if (sec > 0) {
+                params['alert.suppress'] = '1'; params['alert.suppress.period'] = sec + 's';
+                throttleEnabled = 'yes'; suppressionPeriod = sec + 's';
+            } else { params['alert.suppress'] = '0'; }
+        } else { params['alert.suppress'] = '0'; }
+
+        // DFSAlert action
+        params['actions'] = 'DFSAlert';
+        params['action.DFSAlert'] = '1';
+        params['action.DFSAlert.param.app_name'] = appName;
+        params['action.DFSAlert.param.ticket_creation'] = ticketCreation;
+        params['action.DFSAlert.param.priority'] = priority;
+        params['action.DFSAlert.param.email_ids'] = emailIds;
+        if (ticketCreation === 'yes') {
+            params['action.DFSAlert.param.event_class'] = eventClass;
+            params['action.DFSAlert.param.assignment_group'] = assignmentGroup;
+            params['action.DFSAlert.param.org_code'] = orgCode;
+        }
+
+        // For NEW alerts: create disabled at user level (approval workflow)
+        // For EDIT: update existing alert directly
+        if (isEdit && editRestPath) {
+            // ---- EDIT MODE: direct update, no approval needed ----
+            _rest('POST', editRestPath, params, function(err) {
                 _submitting = false;
-                $('#btn-submit').prop('disabled', false).css('opacity', '1').text(isEdit ? 'Update Alert' : 'Submit');
+                $('#btn-submit').prop('disabled', false).css('opacity', '1').text('Update Alert');
                 if (err) {
-                    var m = err.message;
-                    if (err.status === 409) m = 'Alert "' + name + '" already exists. Use Edit to update it.';
-                    console.error('[AF] #' + thisCall + ' FAILED: ' + m);
-                    $('#form-errors').css({background:'#ffebee',color:'#c62828'}).html('Error: ' + m).show();
+                    $('#form-errors').css({background:'#ffebee',color:'#c62828'}).html('Error: ' + (err.message || 'Unknown')).show();
                 } else {
-                    console.log('[AF] #' + thisCall + ' SUCCESS');
-                    if (!isEdit) {
-                        // After creating, share at app level
-                        shareAtAppLevel();
-                    } else {
-                        $('#form-errors').css({background:'#e8f5e9',color:'#2e7d32'}).html('&#10003; Alert ' + verb + 'ed: <strong>' + name + '</strong>').show();
-                    }
+                    $('#form-errors').css({background:'#e8f5e9',color:'#2e7d32'}).html('&#10003; Alert updated: <strong>' + name + '</strong>').show();
                 }
-            });
-        }
-
-        if (!isEdit) {
-            // CHECK if alert already exists before creating
-            console.log('[AF] #' + thisCall + ' Checking if "' + name + '" exists...');
-            _rest('GET', '/servicesNS/-/-/saved/searches/' + encodeURIComponent(name), { output_mode: 'json' }, function(err) {
-                if (!err) {
-                    // Alert exists — don't create duplicate
-                    console.warn('[AF] #' + thisCall + ' Alert "' + name + '" already exists! Aborting create.');
-                    _submitting = false;
-                    $('#btn-submit').prop('disabled', false).css('opacity', '1').text('Submit');
-                    $('#form-errors').css({background:'#ffebee',color:'#c62828'}).html('Alert "<strong>' + name + '</strong>" already exists. Go to Alert Management to edit it.').show();
-                    return;
-                }
-                // Alert doesn't exist — safe to create
-                console.log('[AF] #' + thisCall + ' Alert does not exist, creating...');
-                doSubmit();
             });
         } else {
-            doSubmit();
+            // ---- CREATE MODE: save to CSV only, alert created on approval ----
+
+            // Step 1: Check if alert already exists in Splunk OR in pending CSV
+            _rest('GET', '/servicesNS/-/-/saved/searches/' + encodeURIComponent(name), { output_mode: 'json' }, function(chkErr) {
+                if (!chkErr) {
+                    _submitting = false;
+                    $('#btn-submit').prop('disabled', false).css('opacity', '1').text('Submit');
+                    $('#form-errors').css({background:'#ffebee',color:'#c62828'}).html('Error: Alert "<strong>' + name + '</strong>" already exists.').show();
+                    return;
+                }
+
+                // Step 2: Write all alert config to CSV lookup for approval
+                var alertData = {
+                    alert_name: name,
+                    app_name: appName,
+                    priority: priority,
+                    ticket_creation: ticketCreation,
+                    event_class: ticketCreation === 'yes' ? eventClass : '',
+                    assignment_group: ticketCreation === 'yes' ? assignmentGroup : '',
+                    org_code: ticketCreation === 'yes' ? orgCode : '',
+                    email_ids: emailIds,
+                    email_subject: emailSubject,
+                    email_body: emailBody,
+                    query: fullQuery,
+                    base_query: baseQuery,
+                    cron_schedule: cron,
+                    earliest_time: t.earliest,
+                    latest_time: t.latest,
+                    threshold: threshold,
+                    trigger_type: trg,
+                    throttle_enabled: throttleEnabled,
+                    suppression_period: suppressionPeriod,
+                    submitted_by: _currentUser,
+                    submitted_time: new Date().toISOString(),
+                    status: 'pending'
+                };
+
+                // Store full action params as JSON so approval can recreate exactly
+                var actionParams = {};
+                Object.keys(params).forEach(function(k) { actionParams[k] = params[k]; });
+
+                // SPL-safe escape: handle \ and " for eval strings
+                function splEsc(v) {
+                    return (v || '').toString().replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+                }
+
+                // Build eval string for CSV append
+                var evalParts = [];
+                var uniqueKey = Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                evalParts.push('_key="' + uniqueKey + '"');
+                evalParts.push('alert_name="' + splEsc(name) + '"');
+                evalParts.push('app_name="' + splEsc(appName) + '"');
+                evalParts.push('priority="' + splEsc(priority) + '"');
+                evalParts.push('ticket_creation="' + splEsc(ticketCreation) + '"');
+                evalParts.push('event_class="' + splEsc(ticketCreation === 'yes' ? eventClass : '') + '"');
+                evalParts.push('assignment_group="' + splEsc(ticketCreation === 'yes' ? assignmentGroup : '') + '"');
+                evalParts.push('org_code="' + splEsc(ticketCreation === 'yes' ? orgCode : '') + '"');
+                evalParts.push('email_ids="' + splEsc(emailIds) + '"');
+                evalParts.push('email_subject="' + splEsc(emailSubject) + '"');
+                evalParts.push('email_body="' + splEsc(emailBody) + '"');
+                evalParts.push('base_query="' + splEsc(baseQuery) + '"');
+                evalParts.push('cron_schedule="' + splEsc(cron) + '"');
+                evalParts.push('earliest_time="' + splEsc(t.earliest) + '"');
+                evalParts.push('latest_time="' + splEsc(t.latest) + '"');
+                evalParts.push('threshold="' + splEsc(threshold) + '"');
+                evalParts.push('trigger_type="' + splEsc(trg) + '"');
+                evalParts.push('throttle_enabled="' + splEsc(throttleEnabled) + '"');
+                evalParts.push('suppression_period="' + splEsc(suppressionPeriod) + '"');
+                evalParts.push('submitted_by="' + splEsc(_currentUser) + '"');
+                evalParts.push('submitted_time="' + new Date().toISOString() + '"');
+                evalParts.push('status="pending"');
+                evalParts.push('reviewed_by=""');
+                evalParts.push('reviewed_time=""');
+                evalParts.push('action_params="' + splEsc(JSON.stringify(actionParams)) + '"');
+
+                // Store query separately as base64 to avoid pipe/quote issues in SPL
+                var queryB64 = btoa(unescape(encodeURIComponent(fullQuery)));
+                evalParts.push('query="' + queryB64 + '"');
+                evalParts.push('query_encoded="1"');
+
+                var appendSearch = '| makeresults | eval ' + evalParts.join(', ') + ' | fields - _time | outputlookup append=t pending_alerts_lookup';
+
+                console.log('[AF] Writing alert config to CSV lookup');
+                // Use REST directly instead of SearchManager to avoid $token$ substitution
+                _rest('POST', '/servicesNS/' + encodeURIComponent(_currentUser) + '/alerting_framework/search/jobs', {
+                    search: appendSearch,
+                    exec_mode: 'oneshot',
+                    output_mode: 'json'
+                }, function(csvErr) {
+                    if (csvErr) console.warn('[AF] CSV write failed: ' + csvErr.message);
+                    else console.log('[AF] ✓ CSV lookup entry created');
+                });
+
+                // Step 3: Send approval email
+                sendApprovalEmail(name, appName, priority, ticketCreation, eventClass, assignmentGroup, orgCode, emailIds, baseQuery, cron, threshold, trg);
+
+                // Show success
+                _submitting = false;
+                $('#btn-submit').prop('disabled', false).css('opacity', '1').text('Submit');
+                $('#form-errors').css({background:'#e8f5e9',color:'#2e7d32'}).html(
+                    '&#10003; Alert "<strong>' + name + '</strong>" submitted for approval. ' +
+                    'Approval email sent to configured recipients. ' +
+                    'Alert will be created once approved.'
+                ).show();
+            });
         }
+    }
+
+    // ---- Send approval email via Splunk sendemail ----
+    function sendApprovalEmail(name, appName, priority, ticket, eventClass, assignmentGroup, orgCode, emailIds, query, cron, threshold, trigger) {
+        // Read approval settings from CSV lookup
+        var sm = new SearchManager({
+            id: 'read_settings_' + Date.now(),
+            search: '| inputlookup alert_settings_lookup | head 1',
+            earliest_time: '-1m',
+            latest_time: 'now',
+            autostart: true
+        });
+        sm.on('search:done', function() {
+            var results = sm.data('results');
+            if (!results) { console.warn('[AF] No settings results'); return; }
+            results.on('data', function() {
+                var rows = results.data().rows;
+                var fields = results.data().fields;
+                var approvalEmails = '', dashboardUrl = '';
+                if (rows && rows.length > 0) {
+                    var idx = function(f) { return fields.indexOf(f); };
+                    approvalEmails = rows[0][idx('approval_emails')] || '';
+                    dashboardUrl = rows[0][idx('approval_dashboard_url')] || '';
+                }
+
+                if (!approvalEmails) {
+                    console.warn('[AF] No approval emails configured in lookup. Skipping email.');
+                    return;
+                }
+
+                if (!dashboardUrl) {
+                    dashboardUrl = window.location.origin + Splunk.util.make_url('/app/alerting_framework/alert_approval');
+                }
+
+                var ticketStr = (ticket === 'yes') ? 'Yes' : 'No';
+                var ticketDetails = '';
+                if (ticket === 'yes') {
+                    ticketDetails =
+                        '<tr><td style=\\"padding:8px 12px;font-weight:600;color:#555;\\">Event Class</td><td style=\\"padding:8px 12px;\\">' + eventClass + '</td></tr>' +
+                        '<tr><td style=\\"padding:8px 12px;font-weight:600;color:#555;\\">Assignment Group</td><td style=\\"padding:8px 12px;\\">' + assignmentGroup + '</td></tr>' +
+                        '<tr><td style=\\"padding:8px 12px;font-weight:600;color:#555;\\">Org Code</td><td style=\\"padding:8px 12px;\\">' + orgCode + '</td></tr>';
+                }
+
+                var htmlBody =
+                    '<html><body style=\\"font-family:Arial,sans-serif;margin:0;padding:20px;background:#f4f5f8;\\">' +
+                    '<div style=\\"max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);\\">' +
+                    '<div style=\\"background:linear-gradient(135deg,#1565c0,#1e88e5);color:#fff;padding:20px 24px;\\">' +
+                    '<h2 style=\\"margin:0;font-size:18px;\\">Alert Approval Required</h2>' +
+                    '<p style=\\"margin:5px 0 0;color:#bbdefb;font-size:13px;\\">A new alert has been submitted and requires your approval.</p>' +
+                    '</div>' +
+                    '<div style=\\"padding:20px 24px;\\">' +
+                    '<table style=\\"width:100%;border-collapse:collapse;\\">' +
+                    '<tr style=\\"background:#f9fafb;\\"><td style=\\"padding:8px 12px;font-weight:600;color:#555;\\">Alert Name</td><td style=\\"padding:8px 12px;font-weight:700;\\">' + name + '</td></tr>' +
+                    '<tr><td style=\\"padding:8px 12px;font-weight:600;color:#555;\\">Application</td><td style=\\"padding:8px 12px;\\">' + appName + '</td></tr>' +
+                    '<tr style=\\"background:#f9fafb;\\"><td style=\\"padding:8px 12px;font-weight:600;color:#555;\\">Priority</td><td style=\\"padding:8px 12px;\\">' + priority + '</td></tr>' +
+                    '<tr><td style=\\"padding:8px 12px;font-weight:600;color:#555;\\">Email To</td><td style=\\"padding:8px 12px;\\">' + emailIds + '</td></tr>' +
+                    '<tr style=\\"background:#f9fafb;\\"><td style=\\"padding:8px 12px;font-weight:600;color:#555;\\">Ticket Creation</td><td style=\\"padding:8px 12px;\\">' + ticketStr + '</td></tr>' +
+                    ticketDetails +
+                    '<tr><td style=\\"padding:8px 12px;font-weight:600;color:#555;\\">Schedule</td><td style=\\"padding:8px 12px;\\">' + cron + '</td></tr>' +
+                    '<tr style=\\"background:#f9fafb;\\"><td style=\\"padding:8px 12px;font-weight:600;color:#555;\\">Threshold</td><td style=\\"padding:8px 12px;\\">' + threshold + '</td></tr>' +
+                    '<tr><td style=\\"padding:8px 12px;font-weight:600;color:#555;\\">Trigger</td><td style=\\"padding:8px 12px;\\">' + trigger + '</td></tr>' +
+                    '<tr style=\\"background:#f9fafb;\\"><td style=\\"padding:8px 12px;font-weight:600;color:#555;\\">Submitted By</td><td style=\\"padding:8px 12px;\\">' + _currentUser + '</td></tr>' +
+                    '</table>' +
+                    '<div style=\\"margin-top:16px;padding:12px;background:#1a1c20;border-radius:4px;\\">' +
+                    '<div style=\\"font-size:11px;color:#888;margin-bottom:4px;\\">SEARCH QUERY</div>' +
+                    '<div style=\\"color:#a3e635;font-family:monospace;font-size:12px;word-break:break-all;\\">' + query + '</div>' +
+                    '</div>' +
+                    '<div style=\\"margin-top:20px;text-align:center;\\">' +
+                    '<a href=\\"' + dashboardUrl + '\\" style=\\"display:inline-block;background:linear-gradient(135deg,#1565c0,#1e88e5);color:#fff;padding:12px 32px;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px;\\">Review &amp; Approve</a>' +
+                    '</div>' +
+                    '</div></div></body></html>';
+
+                var safeSubject = 'Alert Approval Required: ' + name.replace(/"/g, '\\"');
+                var safeBody = htmlBody.replace(/'/g, "\\'");
+                var searchCmd = '| makeresults | sendemail to="' + approvalEmails + '" subject="' + safeSubject + '" message="' + safeBody + '" content_type=html sendresults=false';
+
+                console.log('[AF] Sending approval email to: ' + approvalEmails);
+                _rest('POST', '/services/search/jobs', {
+                    search: searchCmd,
+                    exec_mode: 'oneshot',
+                    output_mode: 'json'
+                }, function(emailErr) {
+                    if (emailErr) console.warn('[AF] Approval email failed: ' + emailErr.message);
+                    else console.log('[AF] ✓ Approval email sent');
+                });
+            });
+        });
+        sm.on('search:error', function() {
+            console.warn('[AF] Could not read settings lookup. Approval email not sent.');
+        });
     }
 
     // ---- CLEAR ----
@@ -553,7 +770,7 @@ require([
     $(document).on('click','#btn-preview',function(){if(!validateAll())return;$('#preview_row').slideDown(300);$('#summary_row').slideDown(300);updateSummary();runPreview();});
     $(document).off('click','#btn-submit').on('click','#btn-submit',function(e){e.preventDefault();if(!validateAll())return;if(!isAcknowledged){$('#form-errors').css({background:'#ffebee',color:'#c62828'}).html('Please review the Summary below and click Acknowledge before submitting.').show();$('html,body').animate({scrollTop:$('#btn-ack').offset().top-100},300);return;}createAlert();});
     $(document).on('click','#btn-clear',clearForm);
-    $(document).on('click','#btn-ack',function(){isAcknowledged=true;$(this).removeClass('btn-warning').addClass('btn-success').text('Acknowledged');$('#ack-status').text('Ready to submit').css('color','#2e7d32');});
+    $(document).on('click','#btn-ack',function(){isAcknowledged=true;$(this).removeClass('btn-warning').addClass('btn-success').text('Acknowledged');$('#ack-status').text('Ready to submit for approval').css('color','#2e7d32');});
     $(document).on('click','#quick-start-header',function(){var $r=$('#quick_start_content').closest('.dashboard-row'),$i=$('#qs-icon');$r.is(':visible')?($r.slideUp(300),$i.text('\u25B6')):($r.slideDown(300),$i.text('\u25BC'));});
 
     // ---- INIT ----
@@ -620,46 +837,59 @@ require([
                     console.log('[AF] Parsed eval fields:', JSON.stringify(evalFields));
                 }
 
-                // Fill form fields from eval or content
+                // Fill form fields from action params (stored as action.DFSAlert.param.*)
                 $('#fld_query').val(baseQuery);
+
+                // Read action params from saved search content
+                var ap = function(k) { return c['action.DFSAlert.param.' + k] || ''; };
+
                 // Set dropdown values - use timeout to ensure lookups are loaded
                 setTimeout(function() {
-                    if (evalFields.app_name) {
-                        var appOpt = $('#fld_app_name option[value="'+evalFields.app_name+'"]');
-                        if (appOpt.length) $('#fld_app_name').val(evalFields.app_name);
+                    var appVal = ap('app_name');
+                    if (appVal) {
+                        var appOpt = $('#fld_app_name option[value="'+appVal+'"]');
+                        if (appOpt.length) $('#fld_app_name').val(appVal);
                         else {
-                            // Add as option if not in lookup
-                            $('#fld_app_name').append('<option value="'+evalFields.app_name+'">'+evalFields.app_name+'</option>');
-                            $('#fld_app_name').val(evalFields.app_name);
+                            $('#fld_app_name').append('<option value="'+appVal+'">'+appVal+'</option>');
+                            $('#fld_app_name').val(appVal);
                         }
                     }
-                    if (evalFields.event_class) {
-                        var ecOpt = $('#fld_eventclass option[value="'+evalFields.event_class+'"]');
-                        if (ecOpt.length) { $('#fld_eventclass').val(evalFields.event_class); $('#fld_eventclass_custom').hide().val(''); }
-                        else { $('#fld_eventclass').val('__new__'); $('#fld_eventclass_custom').show().val(evalFields.event_class); }
+                    var ecVal = ap('event_class');
+                    if (ecVal) {
+                        var ecOpt = $('#fld_eventclass option[value="'+ecVal+'"]');
+                        if (ecOpt.length) { $('#fld_eventclass').val(ecVal); $('#fld_eventclass_custom').hide().val(''); }
+                        else { $('#fld_eventclass').val('__new__'); $('#fld_eventclass_custom').show().val(ecVal); }
                     }
-                    if (evalFields.assignment_group) {
-                        var agOpt = $('#fld_assignment option[value="'+evalFields.assignment_group+'"]');
-                        if (agOpt.length) $('#fld_assignment').val(evalFields.assignment_group);
+                    var agVal = ap('assignment_group');
+                    if (agVal) {
+                        var agOpt = $('#fld_assignment option[value="'+agVal+'"]');
+                        if (agOpt.length) $('#fld_assignment').val(agVal);
                         else {
-                            $('#fld_assignment').append('<option value="'+evalFields.assignment_group+'">'+evalFields.assignment_group+'</option>');
-                            $('#fld_assignment').val(evalFields.assignment_group);
+                            $('#fld_assignment').append('<option value="'+agVal+'">'+agVal+'</option>');
+                            $('#fld_assignment').val(agVal);
                         }
                     }
-                    if (evalFields.org_code) {
-                        var ocOpt = $('#fld_orgcode option[value="'+evalFields.org_code+'"]');
-                        if (ocOpt.length) $('#fld_orgcode').val(evalFields.org_code);
+                    var ocVal = ap('org_code');
+                    if (ocVal) {
+                        var ocOpt = $('#fld_orgcode option[value="'+ocVal+'"]');
+                        if (ocOpt.length) $('#fld_orgcode').val(ocVal);
                         else {
-                            $('#fld_orgcode').append('<option value="'+evalFields.org_code+'">'+evalFields.org_code+'</option>');
-                            $('#fld_orgcode').val(evalFields.org_code);
+                            $('#fld_orgcode').append('<option value="'+ocVal+'">'+ocVal+'</option>');
+                            $('#fld_orgcode').val(ocVal);
                         }
                     }
                     toggleTicketFields();
                     updateSummary();
                 }, 1500);
-                if (evalFields.ticket_creation) $('#fld_ticket').val(evalFields.ticket_creation);
-                if (evalFields.priority) $('#fld_priority').val(evalFields.priority);
-                if (evalFields.email_ids) $('#fld_email').val(evalFields.email_ids);
+
+                // Ticket & priority from action params
+                var tkVal = ap('ticket_creation');
+                if (tkVal === '1' || tkVal === 'yes') $('#fld_ticket').val('yes');
+                else if (tkVal) $('#fld_ticket').val(tkVal);
+                if (ap('priority')) $('#fld_priority').val(ap('priority'));
+                if (ap('email_ids')) $('#fld_email').val(ap('email_ids'));
+
+                // email_subject and email_body from eval fields in query
                 if (evalFields.email_subject) $('#fld_subject').val(evalFields.email_subject);
                 if (evalFields.email_body) $('#fld_body').val(evalFields.email_body);
 
